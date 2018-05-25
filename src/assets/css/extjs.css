@@ -1,0 +1,104 @@
+.x-body {
+    font-family: 'Kanit', sans-serif;
+    background-color: #f3f3f3;
+}
+
+.x-form-item {
+    width: 100%;
+}
+
+legend.x-fieldset-header-default {
+    display: inline-block;
+    padding: 0 .5rem !important;
+    width: auto;
+    margin-left: .5rem;
+    margin-bottom: 0;
+}
+
+.x-fieldset-header-default>.x-fieldset-header-text {
+    font: 300 18px 'Kanit', sans-serif;
+}
+
+.x-message-box-icon {
+    display: none;
+}
+
+.x-form-text-default,
+.x-form-item-label-default,
+.x-btn-inner-default-medium,
+.x-column-header,
+.x-grid-item,
+.x-toolbar-text-default,
+.x-form-display-field-default,
+.x-boundlist-item {
+    font: 300 13px 'Kanit', sans-serif;
+}
+
+.x-toolbar-footer {
+    background-color: transparent;
+}
+
+.x-fieldset-default {
+    margin-bottom: 0px;
+    margin-top: -10px;
+}
+
+.x-tip {
+    display: none !important;
+}
+
+.x-tip-body-form-invalid {
+    background-position: 5px 5px;
+    background-repeat: no-repeat;
+}
+
+.x-tip-form-invalid {
+    background-color: #eee;
+}
+
+.x-grid-cell-inner-action-col {
+    font-size: medium;
+}
+
+.x-action-col-icon {
+    color: #2196F3;
+    margin-top: -3px;
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+.x-grid-item-focused .x-grid-cell-inner:before {
+    border: none;
+}
+
+.x-form-text[readonly]:not([role="combobox"]) {
+    background-color: #eee;
+}
+
+.x-form-text[readonly][role="combobox"] {
+    cursor: pointer;
+}
+
+.x-grid-checkcolumn-cell-inner {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+@media (max-width: 575.98px) {
+    .x-form-item-label-default {
+        padding-top: 0px;
+        margin-top: -5px;
+    }
+    .x-form-text-field-body-default {
+        max-width: 100%;
+        margin-top: -10px;
+    }
+    .x-form-item-label,
+    .x-form-item-body {
+        display: block;
+    }
+    .ext-paging .x-form-item-label,
+    .ext-paging .x-form-item-body {
+        display: table-cell;
+    }
+}

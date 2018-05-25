@@ -1,0 +1,83 @@
+.main-menu {
+    font-size: 1rem;
+    color: #fff;
+    display: block;
+    outline: 0;
+    cursor: pointer;
+    user-select: none;
+    line-height: 2rem;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    position: relative;
+}
+
+.main-menu .m-icon {
+    float: left;
+    line-height: 2rem;
+    padding: 1rem;
+    width: 56px;
+}
+
+.main-menu:active,
+.main-menu:focus,
+.main-menu:hover {
+    color: #eee;
+    background-color: rgba(255, 255, 255, .12);
+}
+
+.main-menu.active,
+.sub-menu.active {
+    background-color: #475360;
+}
+
+.main-menu.group.active {
+    background-color: #2c3845;
+}
+
+.main-menu .sub-panel {
+    display: none;
+}
+
+.main-menu.active .sub-panel {
+    display: block;
+}
+
+.sub-menu {
+    padding: 1rem;
+    padding-left: 56px;
+    display: block;
+    color: #fff;
+}
+
+.sub-menu:active,
+.sub-menu:focus,
+.sub-menu:hover {
+    background-color: rgba(255, 255, 255, .12);
+}
+
+.alert-count {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    margin-top: -15px;
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    font-size: 90%;
+    text-align: center;
+    border-radius: 50%;
+    background-color: #e3495a;
+}
+
+.logo_panel .d-name {
+    font-size: .9rem;
+    color: #fff;
+}
+
+.logo_panel .d-post {
+    margin-top: .25rem;
+    font-size: .75rem;
+    color: #fff;
+}

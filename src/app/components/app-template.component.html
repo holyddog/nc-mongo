@@ -1,0 +1,44 @@
+<div id="sidebar_panel" [ngClass]="'overlay' + ((menu.active)? ' active': '')" (click)="menu.hideMenu()"></div>
+<div id="sidebar" class="d-flex flex-column" [ngClass]="(menu.active)? 'active': ''">
+    <div class="tbar logo_panel d-flex v-center">
+        <i class="fas fa-user-circle fa-2x ml-3 mr-3 text-white"></i>
+        <div>
+            <div class="d-name">{{authen.user.name}}</div>
+            <div class="d-post">{{authen.user.role}}</div>
+        </div>
+    </div>
+    <div class="flex v-scroll">
+        <div class="main-menu {{(m.children)? 'group': ''}}" *ngFor="let m of menus" routerLinkActive="active" [class.active]="menu.name.indexOf(m.link) > -1">
+            <div *ngIf="m.roles.indexOf(authen.user.role) > -1">
+                <div *ngIf="m.roles.indexOf(authen.user.role) > -1" class="m-icon"><i class="fas text-white" [ngClass]="m.icon"></i></div>
+                <div *ngIf="!m.children && m.roles.indexOf(authen.user.role) > -1" class="p-3" [routerLink]="m.link" (click)="menu.hideMenu(m.link)">{{ m.name | translate }}</div>
+                <div *ngIf="m.children" class="pt-3 pb-3 pr-3 d-flex v-center" (click)="menu.setName(m.link)">
+                    <div class="flex">{{ m.name | translate }}</div>
+                    <i *ngIf="menu.name.indexOf(m.link) > -1" class="fas fa-angle-up"></i>
+                    <i *ngIf="menu.name.indexOf(m.link) == -1" class="fas fa-angle-down"></i>
+                </div>
+                <div *ngIf="m.children" class="sub-panel">
+                    <a *ngFor="let sm of m.children" [hidden]="sm.roles.indexOf(authen.user.role) == -1" [routerLink]="sm.link" class="sub-menu" routerLinkActive="active" (click)="menu.hideMenu()">{{ sm.name | translate }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="main-menu tp-white-line text-center" (click)="logOut()">
+        <div class="p-3"><i class="pr-3 fas text-white fa-unlock"></i>{{ 'logout' | translate }}</div>
+    </div>
+</div>
+<div id="wrapper" class="d-flex flex-column">
+    <div class="tbar d-flex v-center">
+        <div class="hidden-md-up">
+            <div class="nav-icon d-flex v-center h-center" (click)="menu.showMenu()">
+                <i class="fas fa-bars fa-2x"></i>
+            </div>
+        </div>
+        <div class="page-title ml-md-3 flex">{{view.title}}</div>
+        <div id="command_bar" class="mr-3 flex">
+        </div>
+    </div>
+    <div id="content_body" class="flex v-scroll" style="height: 0">
+        <router-outlet (activate)="onActivate($event)"></router-outlet>
+    </div>
+</div>
