@@ -37,10 +37,12 @@ export class LoginComponent implements OnInit {
                 "id": 1,
                 "email": "holyddog@gmail.com",
                 "name": "Chanon Trising",
-                "role": "admin"
+                "role": "admin",
+                "outlet_id": 381
             };
             this.storage.set('user', this.authenService.user);
+            this.storage.set('access_token', "8GC=CDDDCAKBF4C");
             this.router.navigate(['/']);
-        }, 100);
+        }, 0);
     }
 }

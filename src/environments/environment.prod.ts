@@ -11,6 +11,7 @@ export const Config = {
 
     ServiceUrl: 'http://localhost:3000',
     FileUrl: 'http://localhost:3000/files',
+    ImageUrl: 'http://27.254.138.120:3203/files',
     ServiceVersion: 'v1.0',
 
     StoragePrefix: 'ncMongo-'

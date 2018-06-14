@@ -171,8 +171,13 @@ legend {
 .ext-col {
     padding-top: .35rem;
     padding-bottom: .35rem;
-    padding-left: 5px;
-    padding-right: 5px;
+}
+
+@media (max-width: 575.98px) {
+    .paper {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
 }
 
 .tp-white-line {

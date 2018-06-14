@@ -18,9 +18,7 @@
             "assets/css/bootstrap.css",
             "assets/css/style.css"
         ],
-        "scripts": [
-            "assets/js/ext-all.js"
-        ],
+        "scripts": [],
         "environmentSource": "environments/environment.ts",
         "environments": {
             "dev": "environments/environment.ts",

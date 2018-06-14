@@ -41,6 +41,11 @@ export class AppTemplateComponent implements OnInit {
         icon: "fa-tachometer-alt",
         roles: ["admin"]
     }, {
+        link: "/form/100",
+        name: "สินค้าออนไลน์",
+        icon: "fa-shopping-cart",
+        roles: ["admin"]
+    }, {
         link: "/form/100001",
         name: "form_1",
         icon: "fa-inbox",
@@ -104,6 +109,10 @@ export class AppTemplateComponent implements OnInit {
     onResize(event) {
         Ext.CacheComponents.map(c => {
             c.updateLayout();
-        });  
+        }); 
+
+        var cmdBar = Ext.getCmp('ext-command_bar');
+        if (cmdBar)
+            cmdBar.updateLayout(); 
     }
 }

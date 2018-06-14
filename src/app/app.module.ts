@@ -42,13 +42,7 @@ import { FormComponent } from './components/form/form.component';
                     path: 'form/:id',
                     component: FormComponent
                 }, {
-                    path: 'form/:id/:key',
-                    component: FormComponent
-                }, {
                     path: 'sub-form/:id',
-                    component: FormComponent
-                }, {
-                    path: 'sub-form/:id/:key',
                     component: FormComponent
                 }]
             },

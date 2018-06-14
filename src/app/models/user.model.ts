@@ -3,4 +3,5 @@ export class UserModel {
     email?: string;
     name?: string;
     role?: string;
+    outlet_id?: number;
 }
