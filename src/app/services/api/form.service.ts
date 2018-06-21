@@ -22,6 +22,10 @@ export class FormService {
         return this.http.get(Config.ServiceUrl + '/forms/' + id).toPromise();
     }
 
+    findMenu(): Promise<any> {
+        return this.http.get(Config.ServiceUrl + '/menu').toPromise();
+    }
+
     insert(data: any): Promise<any> {
         return this.http.post(Config.ServiceUrl + '/forms', data).toPromise();
     }

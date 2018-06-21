@@ -34,11 +34,12 @@ export class LoginComponent implements OnInit {
             this.loading = false;
 
             this.authenService.user = {
-                "id": 1,
+                "id": 188,
                 "email": "holyddog@gmail.com",
                 "name": "Chanon Trising",
                 "role": "admin",
-                "outlet_id": 381
+                "outlet_id": 381,
+                "outlet_name": "Lak Si"
             };
             this.storage.set('user', this.authenService.user);
             this.storage.set('access_token', "8GC=CDDDCAKBF4C");

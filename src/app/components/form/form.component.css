@@ -1,0 +1,38 @@
+:host {
+    padding: 15px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    background-color: #f3f3f3;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+:host.is-dialog {
+    background-color: rgba(0, 0, 0, .5);
+    overflow-y: hidden;
+}
+
+:host.is-dialog .form-inner-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 15px;
+    background-color: #f3f3f3;
+}
+
+.form-inner {
+    width: 100%;
+}
+
+.form-inner .tbar {
+    /* border-bottom: solid 1px #cfcfcf; */
+}
+
+@media (max-width: 575.98px) {
+     :host {
+        padding: 15px 0;
+    }
+}

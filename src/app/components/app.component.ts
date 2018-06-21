@@ -3,14 +3,15 @@ import { Title } from '@angular/platform-browser';
 import { Router, NavigationStart, NavigationEnd } from '@angular/router';
 import { Location } from '@angular/common';
 
-import { StorageService } from '../services/shared/storage.service';
 import { MenuService } from '../services/shared/menu.service';
 import { TranslateService } from '../services/shared/translate.service';
 import { ViewService } from '../services/shared/view.service';
+import { FormService } from '../services/api/form.service';
 
 import { AuthenService } from '../services/api/authen.service';
+import { AppService } from '../services/shared/app.service';
 
-import { environment, Config } from '../../environments/environment';
+import { Config } from '../../environments/environment';
 
 declare var $: any;
 declare var Ext: any;
@@ -35,53 +36,15 @@ export class AppComponent implements OnInit {
     styleUrls: ['app.component.css']
 })
 export class AppTemplateComponent implements OnInit {
-    menus: any[] = [{
-        link: "/dashboard",
-        name: "dashboard",
-        icon: "fa-tachometer-alt",
-        roles: ["admin"]
-    }, {
-        link: "/form/100",
-        name: "สินค้าออนไลน์",
-        icon: "fa-shopping-cart",
-        roles: ["admin"]
-    }, {
-        link: "/form/100001",
-        name: "form_1",
-        icon: "fa-inbox",
-        roles: ["admin"]
-    }, {
-        name: "form_group",
-        icon: "fa-chart-bar",
-        roles: ["admin"],
-        link: "/group",
-        children: [{
-            link: "/sub-form/100002",
-            name: "form_2",
-            roles: ["admin"]
-        }, {
-            link: "/sub-form/100003",
-            name: "form_3",
-            roles: ["admin"]
-        }, {
-            link: "/sub-form/100004",
-            name: "form_4",
-            roles: ["admin"]
-        }]
-    }];
+    menus: any[] = [];
 
-    constructor(private location: Location, private router: Router, private title: Title, private menu: MenuService, private view: ViewService, public authen: AuthenService) {
+    constructor(private location: Location, private router: Router, private title: Title, public app: AppService, private menu: MenuService, private view: ViewService, public authen: AuthenService, private formService: FormService) {
         router.events.subscribe((val) => {
-            if (val instanceof NavigationEnd) {
-                Ext.CacheComponents.map(c => {
-                    c.destroy();
-                });            
-                Ext.CacheComponents = [];   
+            if (val instanceof NavigationEnd) {                
+                // this.view.clearComponent();
 
-                var cmdBar = Ext.getCmp('ext-command_bar');
-                if (cmdBar)
-                    cmdBar.destroy();
-                // console.log(this.location.path());
+                this.view.title = Config.AppName;
+                
                 // this.menu.hideMenu(this.location.path());
             }
         });
@@ -91,6 +54,13 @@ export class AppTemplateComponent implements OnInit {
         this.title.setTitle(Config.AppName);
         this.view.title = Config.AppName;
         this.menu.name = this.location.path();
+
+        this.app.showLoading();
+        this.formService.findMenu()
+            .then(data => {
+                this.app.hideLoading();
+                this.menus = data;
+            });
     }
 
     onActivate(): void {
@@ -108,11 +78,15 @@ export class AppTemplateComponent implements OnInit {
     @HostListener('window:resize', ['$event'])
     onResize(event) {
         Ext.CacheComponents.map(c => {
-            c.updateLayout();
+            c.items.map(i => {
+                i.updateLayout();
+                if (i.xtype == 'grid') {
+                    i.setWidth('auto');
+                }
+            });
+            if (c.tbar) {
+                c.tbar.updateLayout();
+            }
         }); 
-
-        var cmdBar = Ext.getCmp('ext-command_bar');
-        if (cmdBar)
-            cmdBar.updateLayout(); 
     }
 }

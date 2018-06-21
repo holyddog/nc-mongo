@@ -5,55 +5,100 @@ declare var Ext: any;
 @Injectable()
 export class ViewService {
     title: string;
-    scope: any;
+    forms: any[] = [];
+    dialogs: any[] = [];
+    loading: boolean = false;
 
-    filter: boolean;
-    form: boolean;
+    showLoading(): void {
+        this.loading = true;
+    }
 
-    ready(config: any): Promise<any> {        
-        // this.filter = false;
-        // this.form = false;
-
-        // let keys: string[] = ['ext-filter', 'ext-command_bar', 'ext-form'];
-        // for (let i of keys) {
-        //     let cmp = Ext.getCmp(i);
-        //     if (cmp) {
-        //         cmp.destroy();
-        //     }
-        // }
-
-        if (config.scope)
-            this.scope = config.scope;
-        // if (config.filter) {
-        //     this.filter = true;
-        // }
-
-        return new Promise<any>((resolve, reject) => {            
-            Ext.onReady(() => {  
-                resolve();
-            });
-        });
+    hideLoading(): void {
+        this.loading = false;
     }
 
     setTitle(title: string): void {
         this.title = title;
     }
 
-    setToolbarButtons(buttons: any[]): void {
-        let buttonItems: any[] = [];
-        for (let i of buttons) {
-            buttonItems.push({
-                xtype: 'button',
-                text: i.text,
-                scale: 'medium',
-                cls: 'ext-secondary',
-                iconCls: 'fas ' + i.icon + ' fa-1x',
-                handler: (i.handler)? i.handler.bind(this.scope): null
-            });
+    setForm(form: any): void {
+        this.clearComponent();
+
+        this.forms = [form];
+        Ext.CacheComponents = [{
+            id: form.id,
+            items: []
+        }];
+    }
+
+    hasLayer(): boolean {
+        return this.forms.length > 1;
+    }
+
+    addForm(form: any): void {
+        this.forms.push(form);
+        Ext.CacheComponents.push({
+            id: form.id,
+            items: []
+        });
+
+        for (let c of Ext.CacheComponents) {
+            if (c.tbar) {
+                c.tbar.hide();
+            }
         }
-        
-        Ext.create('Ext.Panel', {   
-            id: 'ext-command_bar',             
+    }
+
+    addDialog(form: any): void {
+        this.dialogs.push(form);
+        Ext.CacheComponents.push({
+            id: form.id,
+            items: [],
+            dialog: true
+        });
+    }
+
+    closeForm(): void {
+        var form = this.forms[this.forms.length - 1];
+        for (let c of Ext.CacheComponents) {
+            if (c.id == form.id) {
+                c.items.map(i => {
+                    i.destroy();
+                });
+                if (c.tbar) {
+                    c.tbar.destroy();
+                }
+                break;
+            }
+        }
+        Ext.CacheComponents.pop();
+        this.forms.pop();
+
+        var tbar = Ext.CacheComponents[Ext.CacheComponents.length - 1].tbar;
+        if (tbar) {
+            tbar.show();
+        }
+    }
+
+    closeDialog(): void {
+        var form = this.dialogs[this.dialogs.length - 1];
+        for (let c of Ext.CacheComponents) {
+            if (c.id == form.id) {
+                c.items.map(i => {
+                    i.destroy();
+                });
+                if (c.tbar) {
+                    c.tbar.destroy();
+                }
+                break;
+            }
+        }
+        Ext.CacheComponents.pop();
+        this.dialogs.pop();
+    }
+
+    setToolbarButtons(id: number, buttons: any[]): void {
+        var tbar = Ext.create('Ext.Panel', {
             layout: {
                 type: 'hbox',
                 pack: 'end'
@@ -64,101 +109,83 @@ export class ViewService {
             defaults: {
                 margin: '0 0 0 10'
             },
-            items: buttonItems
-        });
-
-        window.dispatchEvent(new Event('resize'));
-    }
-
-    setFilter(options: any): void {
-        Ext.create('Ext.form.FieldSet', {
-            id: 'ext-filter',
-            renderTo: Ext.get('filter'),
-            title: 'ค้นหา',
-            padding: '10 5 0 5',
-            cls: 'ext-layout',
-            items: {
-                xtype: 'form',
-                border: false,
-                buttons: [{
-                    text: 'ค้นหา',
-                    scale: 'medium',
-                    margin: 5,
-                    iconCls: 'fas fa-search fa-1x',
-                    cls: 'ext-primary',
-                    handler: function (self) {
-                        options.onSearch(self.ownerCt.ownerCt.getForm());
-                    }
-                }, {
-                    text: 'เคลียข้อมูล',
-                    scale: 'medium',
-                    margin: 5,
-                    iconCls: 'fas fa-redo-alt fa-1x',
-                    cls: 'ext-primary',
-                    handler: function (self) {
-                        self.ownerCt.ownerCt.getForm().reset();
-                    }
-                }],
-                buttonAlign: 'center',
-                items: options.items
-            }
-        });
-        
-        setTimeout(function () {
-            window.dispatchEvent(new Event('resize'));
-        });
-    }
-
-    setForm(options: any): any {
-        this.form = true;
-
-        var formButtons: any[] = [];
-        if (options.buttons) {
-            for (let i of options.buttons) {
-                let b: any = {
-                    text: i.text,
-                    scale: 'medium',
-                    margin: 5,
-                    iconCls: 'fas ' + i.icon + ' fa-1x',
-                    cls: (!i.cls)? 'ext-primary': i.cls,
-                    handler: (typeof i.handler == 'function')? i.handler.bind(this.scope): null
-                };
-                if (i.id) {
-                    b.id = i.id;
+            listeners: {
+                show: function(t) {
+                    setTimeout(() => {
+                        t.updateLayout();
+                    }, 0);
                 }
-                formButtons.push(b);
+            },
+            items: buttons
+        });
+
+        for (let c of Ext.CacheComponents) {
+            if (c.id == id) {
+                c.tbar = tbar;
+            }
+            else if (c.tbar) {
+                c.tbar.hide();
             }
         }
-
-        var form = Ext.create('Ext.form.Panel', {
-            border: false,
-            items: options.items,
-            buttons: formButtons,
-            buttonAlign: 'center'
-        });
-
-        Ext.create('Ext.panel.Panel', {
-            id: 'ext-form',
-            renderTo: Ext.get('form'),
-            cls: 'ext-layout',
-            border: false,
-            items: form
-        });
-        
-        setTimeout(function () {
-            window.dispatchEvent(new Event('resize'));
-        });
-
-        return form;
     }
 
-    loadData(form: any, data: any): void {
-        var basicForm = form.getForm();
-        for (var i in data) {
-            var field = basicForm.findField(i);
-            if (field) {
-                field.setValue(data[i]);
+    setDialogToolbarButtons(id: number, buttons: any[]): void {
+        var tbar = Ext.create('Ext.Panel', {
+            layout: {
+                type: 'hbox',
+                pack: 'center'
+            },
+            cls: 'ext-layout',
+            border: false,
+            width: '100%',
+            renderTo: Ext.get('bbar_' + id),
+            defaults: {
+                margin: '0 5 0 5'
+            },
+            listeners: {
+                show: function(t) {
+                    setTimeout(() => {
+                        t.updateLayout();
+                    }, 0);
+                }
+            },
+            items: buttons
+        });
+
+        for (let c of Ext.CacheComponents) {
+            if (c.id == id) {
+                c.tbar = tbar;
             }
         }
+    }
+
+    addComponent(id: number, component: any): void {
+        for (let c of Ext.CacheComponents) {
+            if (c.id == id) {
+                c.items.push(component);
+                break;
+            }
+        }
+    }
+
+    getComponentItems(id: number): any[] {
+        for (let c of Ext.CacheComponents) {
+            if (c.id == id) {
+                return c.items;
+            }
+        }
+        return [];
+    }
+
+    clearComponent(): void {        
+        Ext.CacheComponents.map(c => {
+            c.items.map(i => {
+                i.destroy();
+            });
+            if (c.tbar) {
+                c.tbar.destroy();
+            }
+        });            
+        Ext.CacheComponents = [];
     }
 }

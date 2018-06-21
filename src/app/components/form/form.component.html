@@ -1,58 +1,67 @@
-<spinner [hidden]="!loading"></spinner>
-<ng-container *ngIf="formData != null">
-    <ng-container *ngFor="let i of formData">
-        <div #form *ngIf="i.container" class="paper">
-            <div class="container" *ngIf="i.container && i.container.length > 0">
-                <ng-container *ngFor="let con of i.container">
-                    <ng-container *ngIf="con.rows && con.rows.length > 0">
-                        <div *ngFor="let r of con.rows" class="row ext-row" [hidden]="r.hidden == true">
-                            <ng-container *ngIf="r.cols && r.cols.length > 0">
-                                <div [id]="c.id" *ngFor="let c of r.cols" class="ext-col" [ngClass]="(!c.cls)? 'col-md-12': ((c.cls && c.cls.indexOf('col-') == -1)? ('col-md-12 ' + c.cls): c.cls)"></div>
-                            </ng-container>
-                        </div>
-                    </ng-container>
-                    <fieldset *ngIf="con.fieldset">
-                        <legend>{{con.fieldset.title}}</legend>
-                        <ng-container *ngIf="con.fieldset.rows && con.fieldset.rows.length > 0">
-                            <div *ngFor="let r of con.fieldset.rows" class="row ext-row" [hidden]="r.hidden == true">
+<div *ngIf="formData != null" class="form-inner">
+    <div *ngIf="isDialog" class="tbar d-flex v-center">
+        <div class="page-title ml-3 flex">Test</div>
+        <div class="nav-icon d-flex v-center h-center" (click)="view.closeDialog()">
+            <i class="fas fa-times fa-1-5x"></i>
+        </div>
+    </div>
+    <div class="form-inner-body" [style.maxHeight]="getBodyHeight() + 'px'">
+        <ng-container *ngFor="let i of formData">
+            <div #form *ngIf="i.container" class="paper">
+                <div class="container" *ngIf="i.container && i.container.length > 0">
+                    <ng-container *ngFor="let con of i.container">
+                        <ng-container *ngIf="con.rows && con.rows.length > 0">
+                            <div *ngFor="let r of con.rows" class="row ext-row" [hidden]="r.hidden == true">
                                 <ng-container *ngIf="r.cols && r.cols.length > 0">
                                     <div [id]="c.id" *ngFor="let c of r.cols" class="ext-col" [ngClass]="(!c.cls)? 'col-md-12': ((c.cls && c.cls.indexOf('col-') == -1)? ('col-md-12 ' + c.cls): c.cls)"></div>
                                 </ng-container>
                             </div>
                         </ng-container>
-                    </fieldset>
-                    <div class="tabs" *ngIf="con.tab && con.tab.items && con.tab.items.length > 0">
-                        <ul class="nav nav-tabs">
-                            <li *ngFor="let t of con.tab.items; let idx = index" class="nav-item">
-                                <a class="nav-link" [class.active]="con.tab.tabIndex == idx" (click)="con.tab.tabChange(idx)">{{t.title}}</a>
-                            </li>
-                        </ul>
-                        <div *ngFor="let t of con.tab.items; let idx = index" [class.active]="con.tab.tabIndex == idx" class="tab-container">
-                            <ng-container *ngIf="t.container">
-                                <ng-container *ngFor="let tcon of t.container">
-                                    <ng-container *ngIf="tcon.rows && tcon.rows.length > 0">
-                                        <div *ngFor="let r of tcon.rows" class="row ext-row" [hidden]="r.hidden == true">
-                                            <ng-container *ngIf="r.cols && r.cols.length > 0">
-                                                <div [id]="c.id" *ngFor="let c of r.cols" class="ext-col" [ngClass]="(!c.cls)? 'col-md-12': ((c.cls && c.cls.indexOf('col-') == -1)? ('col-md-12 ' + c.cls): c.cls)"></div>
-                                            </ng-container>
-                                        </div>
+                        <fieldset *ngIf="con.fieldset">
+                            <legend>{{con.fieldset.title}}</legend>
+                            <ng-container *ngIf="con.fieldset.rows && con.fieldset.rows.length > 0">
+                                <div *ngFor="let r of con.fieldset.rows" class="row ext-row" [hidden]="r.hidden == true">
+                                    <ng-container *ngIf="r.cols && r.cols.length > 0">
+                                        <div [id]="c.id" *ngFor="let c of r.cols" class="ext-col" [ngClass]="(!c.cls)? 'col-md-12': ((c.cls && c.cls.indexOf('col-') == -1)? ('col-md-12 ' + c.cls): c.cls)"></div>
                                     </ng-container>
-                                    <fieldset *ngIf="tcon.fieldset">
-                                        <legend>{{tcon.fieldset.title}}</legend>
-                                        <ng-container *ngIf="tcon.fieldset.rows && tcon.fieldset.rows.length > 0">
-                                            <div *ngFor="let r of tcon.fieldset.rows" class="row ext-row" [hidden]="r.hidden == true">
+                                </div>
+                            </ng-container>
+                        </fieldset>
+                        <div class="tabs" *ngIf="con.tab && con.tab.items && con.tab.items.length > 0">
+                            <ul class="nav nav-tabs">
+                                <li *ngFor="let t of con.tab.items; let idx = index" class="nav-item">
+                                    <a class="nav-link" [class.active]="con.tab.tabIndex == idx" (click)="con.tab.tabChange(idx)">{{t.title}}</a>
+                                </li>
+                            </ul>
+                            <div *ngFor="let t of con.tab.items; let idx = index" [class.active]="con.tab.tabIndex == idx" class="tab-container">
+                                <ng-container *ngIf="t.container">
+                                    <ng-container *ngFor="let tcon of t.container">
+                                        <ng-container *ngIf="tcon.rows && tcon.rows.length > 0">
+                                            <div *ngFor="let r of tcon.rows" class="row ext-row" [hidden]="r.hidden == true">
                                                 <ng-container *ngIf="r.cols && r.cols.length > 0">
                                                     <div [id]="c.id" *ngFor="let c of r.cols" class="ext-col" [ngClass]="(!c.cls)? 'col-md-12': ((c.cls && c.cls.indexOf('col-') == -1)? ('col-md-12 ' + c.cls): c.cls)"></div>
                                                 </ng-container>
                                             </div>
                                         </ng-container>
-                                    </fieldset>
+                                        <fieldset *ngIf="tcon.fieldset">
+                                            <legend>{{tcon.fieldset.title}}</legend>
+                                            <ng-container *ngIf="tcon.fieldset.rows && tcon.fieldset.rows.length > 0">
+                                                <div *ngFor="let r of tcon.fieldset.rows" class="row ext-row" [hidden]="r.hidden == true">
+                                                    <ng-container *ngIf="r.cols && r.cols.length > 0">
+                                                        <div [id]="c.id" *ngFor="let c of r.cols" class="ext-col" [ngClass]="(!c.cls)? 'col-md-12': ((c.cls && c.cls.indexOf('col-') == -1)? ('col-md-12 ' + c.cls): c.cls)"></div>
+                                                    </ng-container>
+                                                </div>
+                                            </ng-container>
+                                        </fieldset>
+                                    </ng-container>
                                 </ng-container>
-                            </ng-container>
+                            </div>
                         </div>
-                    </div>
-                </ng-container>
+                    </ng-container>
+                </div>
             </div>
-        </div>
-    </ng-container>
-</ng-container>
+        </ng-container>
+    </div>
+    <div [id]="'bbar_' + formId" *ngIf="isDialog" class="tbar d-flex v-center">
+    </div>
+</div>

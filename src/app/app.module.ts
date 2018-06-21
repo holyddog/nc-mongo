@@ -17,11 +17,12 @@ import { StorageService } from './services/shared/storage.service';
 import { MenuService } from './services/shared/menu.service';
 import { TranslateService } from './services/shared/translate.service';
 import { ViewService } from './services/shared/view.service';
-import { ExtService } from './services/shared/ext.service';
+import { AppService } from './services/shared/app.service';
 
 import { LoginComponent } from './components/login/login.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { FormComponent } from './components/form/form.component';
+import { PageComponent } from './components/page/page.component';
 
 @NgModule({
     imports: [
@@ -40,10 +41,7 @@ import { FormComponent } from './components/form/form.component';
                     component: DashboardComponent
                 }, {
                     path: 'form/:id',
-                    component: FormComponent
-                }, {
-                    path: 'sub-form/:id',
-                    component: FormComponent
+                    component: PageComponent
                 }]
             },
             {
@@ -59,18 +57,19 @@ import { FormComponent } from './components/form/form.component';
         AppTemplateComponent,
         LoginComponent,
         DashboardComponent,
-        FormComponent
+        FormComponent,
+        PageComponent
     ],
     providers: [
         AuthenService,
         AuthenGuardService,
         FormService,
         DataService,
+        AppService,
         StorageService,
         MenuService,
         TranslateService,
-        ViewService,
-        ExtService
+        ViewService
     ],
     bootstrap: [AppComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA]

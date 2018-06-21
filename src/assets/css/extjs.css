@@ -34,6 +34,10 @@ legend.x-fieldset-header-default {
     font: 300 13px 'Kanit', sans-serif;
 }
 
+.x-btn-inner-default-large {
+    font: 300 14px 'Kanit', sans-serif;
+}
+
 .x-toolbar-footer {
     background-color: transparent;
 }
@@ -84,7 +88,27 @@ legend.x-fieldset-header-default {
     padding-right: 0;
 }
 
+.ext-auto-height .x-grid-with-row-lines .x-grid-item:last-child {
+    border-bottom-style: none !important;
+}
+
+.ext-field-range .x-autocontainer-innerCt {
+    display: -webkit-box !important;
+    display: -ms-flexbox !important;
+    display: flex !important;
+}
+
+.ext-field-range .ext-sep-range {
+    width: 50px;
+    height: 26px;
+    text-align: center;
+    line-height: 26px;
+}
+
 @media (max-width: 575.98px) {
+    .ext-field-range .x-autocontainer-innerCt {
+        display: table-cell !important;
+    }
     .x-form-item-label-default {
         padding-top: 0px;
         margin-top: -5px;
@@ -100,5 +124,13 @@ legend.x-fieldset-header-default {
     .ext-paging .x-form-item-label,
     .ext-paging .x-form-item-body {
         display: table-cell;
+    }
+    .ext-field-range .ext-sep-range {
+        margin-top: -10px;
+        margin-bottom: 5px;
+        width: 100%;
+    }
+    .ext-layout .x-btn-inner {
+        display: none !important;
     }
 }

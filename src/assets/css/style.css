@@ -4,6 +4,20 @@ body {
     font-family: 'Kanit', sans-serif;
 }
 
+::-webkit-scrollbar-track {
+    background-color: #ddd;
+}
+
+::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+    background-color: #ddd;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #999;
+}
+
 a:not([href]):not([tabindex]),
 a:not([href]):not([tabindex]):hover,
 a:not([href]):not([tabindex]):focus {
@@ -54,6 +68,11 @@ legend {
 
 .fa-1x {
     line-height: 1.5rem;
+}
+
+.fa-1-5x {
+    line-height: 32px;
+    font-size: 1.2rem;
 }
 
 #sidebar {
@@ -116,7 +135,7 @@ legend {
 }
 
 .tbar.logo_panel {
-    background-color: #EB1C24;
+    background-color: #1E88E5;
 }
 
 .tbar .nav-icon {
@@ -159,13 +178,7 @@ legend {
 }
 
 #content_body {
-    padding: 15px;
-}
-
-@media (max-width: 575.98px) {
-    #content_body {
-        padding: 15px 0;
-    }
+    position: relative;
 }
 
 .ext-col {
@@ -184,43 +197,43 @@ legend {
     border-top: 1px solid #fff;
 }
 
-.ext-primary.x-btn-default-medium {
+.ext-primary {
     background-color: #2196F3;
-    border-color: #1976D2;
+    border-color: #1976D2 !important;
 }
 
-.ext-primary.x-btn.x-btn-disabled.x-btn-default-medium,
-.ext-primary.x-btn-over.x-btn-default-medium {
-    background-color: #42A5F5;
+.ext-primary.x-btn.x-btn-disabled,
+.ext-primary.x-btn-over {
+    background-color: #42A5F5 !important;
 }
 
-.ext-secondary.x-btn-default-medium {
+.ext-secondary {
     background-color: #FF5722;
-    border-color: #E64A19;
+    border-color: #E64A19 !important;
 }
 
-.ext-secondary.x-btn.x-btn-disabled.x-btn-default-medium,
-.ext-secondary.x-btn-over.x-btn-default-medium {
-    background-color: #FF7043;
+.ext-secondary.x-btn.x-btn-disabled,
+.ext-secondary.x-btn-over {
+    background-color: #FF7043 !important;
 }
 
-.ext-grey.x-btn-default-medium {
+.ext-grey {
     background-color: #757575;
-    border-color: #424242;
+    border-color: #424242 !important;
 }
 
-.ext-grey.x-btn.x-btn-disabled.x-btn-default-medium,
-.ext-grey.x-btn-over.x-btn-default-medium {
+.ext-grey.x-btn.x-btn-disabled,
+.ext-grey.x-btn-over {
     background-color: #9E9E9E;
 }
 
-.ext-red.x-btn-default-medium {
+.ext-red {
     background-color: #E53935;
-    border-color: #C62828;
+    border-color: #C62828 !important;
 }
 
-.ext-red.x-btn.x-btn-disabled.x-btn-default-medium,
-.ext-red.x-btn-over.x-btn-default-medium {
+.ext-red.x-btn.x-btn-disabled,
+.ext-red.x-btn-over {
     background-color: #F44336;
 }
 

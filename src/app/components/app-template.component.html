@@ -27,18 +27,28 @@
         <div class="p-3"><i class="pr-3 fas text-white fa-unlock"></i>{{ 'logout' | translate }}</div>
     </div>
 </div>
-<div id="wrapper" class="d-flex flex-column">
-    <div class="tbar d-flex v-center">
-        <div class="hidden-md-up">
-            <div class="nav-icon d-flex v-center h-center" (click)="menu.showMenu()">
-                <i class="fas fa-bars fa-2x"></i>
+<div id="wrapper" class="d-flex">
+    <div class="flex d-flex flex-column position-relative">
+        <spinner [hidden]="!view.loading"></spinner>
+        <div class="tbar d-flex v-center">
+            <div [hidden]="view.hasLayer()" class="hidden-md-up">
+                <div class="nav-icon d-flex v-center h-center" (click)="menu.showMenu()">
+                    <i class="fas fa-bars fa-1-5x"></i>
+                </div>
+            </div>
+            <div [hidden]="!view.hasLayer()" class="nav-icon d-flex v-center h-center" (click)="view.closeForm()">
+                <i class="fas fa-chevron-left fa-1-5x"></i>
+            </div>
+            <div class="page-title ml-3 flex">{{view.title}}</div>
+            <div id="command_bar" class="mr-3 flex">
             </div>
         </div>
-        <div class="page-title ml-md-3 flex">{{view.title}}</div>
-        <div id="command_bar" class="mr-3 flex">
+        <div id="content_body" class="flex v-scroll" style="height: 0">
+            <router-outlet (activate)="onActivate($event)"></router-outlet>
         </div>
-    </div>
-    <div id="content_body" class="flex v-scroll" style="height: 0">
-        <router-outlet (activate)="onActivate($event)"></router-outlet>
+        <ng-container *ngFor="let d of view.dialogs; index as i">
+            <app-form class="is-dialog d-flex v-center h-center" [formId]="d.id" [queryParams]="d.params" [isDialog]="true" [style.zIndex]="2000 + i"></app-form>
+        </ng-container>
     </div>
 </div>
+<spinner [hidden]="!app.loading"></spinner>

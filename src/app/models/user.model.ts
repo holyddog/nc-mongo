@@ -4,4 +4,5 @@ export class UserModel {
     name?: string;
     role?: string;
     outlet_id?: number;
+    outlet_name?: string;
 }
