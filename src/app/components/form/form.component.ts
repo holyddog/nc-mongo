@@ -22,17 +22,18 @@ export class FormComponent implements OnInit {
     @Input()  queryParams: any;
     @Input()  isDialog: boolean;
     
+    title: string;
     combSeq: number = 1;
     collection: string;
     pk: string;
     hasKey: boolean = false;
+    hasToolbar: boolean = false;
     formData: any[] = null;
     remoteData: any[] = [];
     ds: any[] = [];
     dsData: any = {};
+    bodyHeight: number;
     center: any = ["@OUTLET_ID", "@OUTLET_NAME", "@USER_ID", "@USER_NAME"];
-
-    forms: any[] = [];
 
     constructor(private router: Router, private route: ActivatedRoute, private authen: AuthenService, private app: AppService, private translate: TranslateService, private view: ViewService, private formService: FormService, private dataService: DataService) {
         router.events.subscribe((val) => {
@@ -43,16 +44,25 @@ export class FormComponent implements OnInit {
     }
 
     ngOnInit() {
-
+        this.bodyHeight = window.innerHeight - 128 - 30;
         // this.route.queryParams.forEach((params: Params) => {
         //     this.queryParams = params;
         // });
+
+        console.log(this.view.forms);
         
         if (this.formId) {
             this.view.loading = true;
             this.formService.findById(this.formId)
                 .then(data => {
                     if (!data.error) {
+                        if (data.title) {
+                            this.title = data.title;
+                            if (!this.isDialog) {
+                                this.view.setTitle(this.title, this.formId);
+                            }
+                        }
+
                         let pk: any[] = data.pk;
                         if (pk) {
                             var checkCount = 0;
@@ -96,19 +106,23 @@ export class FormComponent implements OnInit {
 
                                 this.view.loading = false;
                                 if (data.tbar) {
+                                    this.hasToolbar = true;
+
                                     let tbar: any[] = [];
                                     let lang: string = this.translate._currentLang;
                                     for (let b of data.tbar) {
-                                        if (!b.icon) {
-                                            if (b.action.type == 'save') {
-                                                b.icon = 'fa-save';
+                                        var cls = 'ext-secondary';
+                                        if (b.action.type == 'save') {
+                                            if (!b.icon) {
+                                               b.icon = 'fa-save';
+                                               cls = 'ext-primary';
                                             }
                                         }
 
                                         var button = Ext.create('Ext.Button', {
                                             text: (typeof b.text == 'object') ? b.text[lang] : this.translate.instant(b.text),
                                             scale: 'large',
-                                            cls: 'ext-secondary',
+                                            cls: cls,
                                             iconCls: 'fas ' + b.icon + ' fa-1-5x',
                                             handler: function () {
                                                 if (this.action.type == 'link') {
@@ -123,6 +137,7 @@ export class FormComponent implements OnInit {
                                                 else if (this.action.type == 'openDialog') {
                                                     this.angular.view.addDialog({
                                                         id: this.action.id,
+                                                        title: this.angular.title,
                                                         params: {}
                                                     });
                                                 }
@@ -173,6 +188,9 @@ export class FormComponent implements OnInit {
                                         this.view.setDialogToolbarButtons(this.formId, tbar);
                                     }
                                 }
+                                else {
+                                    this.bodyHeight = window.innerHeight - 64 - 30;
+                                }
 
                                 if (this.hasKey) {
                                     setTimeout(() => {
@@ -214,10 +232,6 @@ export class FormComponent implements OnInit {
                     this.view.loading = false;
                 });
         }
-    }
-
-    getBodyHeight(): number {        
-        return window.innerHeight - 128 - 20;
     }
     
     getCenterParam(name: string): any {        
@@ -735,31 +749,42 @@ export class FormComponent implements OnInit {
                     columns.push(Ext.create('Ext.grid.column.Action', col.config));
                 }
                 else {
-                    if (col.mapping) {
-                        col.config.ariaAttributes = {
-                            mapping: col.mapping
-                        };
+                    var column;
+                    if (col.type == 'date') {
+                        col.config.format = 'd/m/Y H:i';
+                        column = Ext.create('Ext.grid.column.Date', col.config);
+                    }
+                    else {                        
                         col.config.renderer = function (value, metaData, record, rowIndex, colIndex) {
                             if (value) {
                                 var column = this.getColumns()[colIndex];
-                                var mappings = column.ariaAttributes.mapping.split('.');
-                                if (mappings.length > 1) {
-                                    for (var i = 1; i < mappings.length; i++) {
-                                        value = value[mappings[i]];
+                                if (column.mapping) {
+                                    var mappings = column.mapping.mapping.split('.');
+                                    if (mappings.length > 1) {
+                                        for (var i = 1; i < mappings.length; i++) {
+                                            value = value[mappings[i]];
+                                        }
+                                    }
+                                }
+                                if (column.action) {
+                                    if (column.action.type == 'openForm') {
+                                        return `<a style="text-decoration: underline" href="javascript:void(0)">${value}</a>`;                                        
                                     }
                                 }
                             }
                             return value;
                         }
+                        column = Ext.create('Ext.grid.column.Column', col.config);
                     }
 
-                    if (col.type == 'date') {
-                        col.config.format = 'd/m/Y H:i';
-                        columns.push(Ext.create('Ext.grid.column.Date', col.config));
+                    if (col.action) {
+                        column.action = col.action;
                     }
-                    else {
-                        columns.push(Ext.create('Ext.grid.column.Column', col.config));
+                    if (col.mapping) {
+                        column.mapping = col.mapping;
                     }
+                    column.angular = this;
+                    columns.push(column);
                 }
 
                 if (col.config.dataIndex) {
@@ -767,6 +792,9 @@ export class FormComponent implements OnInit {
                 }
             }
             config.listeners = {
+                // cellclick: function(o, td, cellIndex, record, tr, rowIndex, e) {
+
+                // },
                 resize: function(e) {
                     if (e.ownerGrid) {
                         setTimeout(() => {

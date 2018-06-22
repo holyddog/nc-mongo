@@ -23,6 +23,16 @@
     background-color: #f3f3f3;
 }
 
+:host.is-dialog .tbar {
+    box-shadow: none;
+    border-bottom: solid 1px #e2e2e2;
+}
+
+:host.is-dialog .bbar {
+    box-shadow: none;
+    border-top: solid 1px #e2e2e2;
+}
+
 .form-inner {
     width: 100%;
 }

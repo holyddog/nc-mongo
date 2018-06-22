@@ -42,7 +42,6 @@ export class AppTemplateComponent implements OnInit {
         router.events.subscribe((val) => {
             if (val instanceof NavigationEnd) {                
                 // this.view.clearComponent();
-
                 this.view.title = Config.AppName;
                 
                 // this.menu.hideMenu(this.location.path());
@@ -53,7 +52,9 @@ export class AppTemplateComponent implements OnInit {
     ngOnInit(): void {
         this.title.setTitle(Config.AppName);
         this.view.title = Config.AppName;
-        this.menu.name = this.location.path();
+
+        let path: string = this.location.path();
+        this.menu.name = path.substring(path.lastIndexOf('/') + 1);
 
         this.app.showLoading();
         this.formService.findMenu()

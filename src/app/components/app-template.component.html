@@ -8,14 +8,14 @@
         </div>
     </div>
     <div class="flex v-scroll">
-        <div class="main-menu {{(m.children)? 'group': ''}}" *ngFor="let m of menus" routerLinkActive="active" [class.active]="menu.name.indexOf(m.link) > -1">
+        <div class="main-menu {{(m.children)? 'group': ''}}" *ngFor="let m of menus" routerLinkActive="active" [class.active]="menu.name == m.link.substring(m.link.lastIndexOf('/') + 1)">
             <div *ngIf="m.roles.indexOf(authen.user.role) > -1">
                 <div *ngIf="m.roles.indexOf(authen.user.role) > -1" class="m-icon"><i class="fas text-white" [ngClass]="m.icon"></i></div>
                 <div *ngIf="!m.children && m.roles.indexOf(authen.user.role) > -1" class="p-3" [routerLink]="m.link" (click)="menu.hideMenu(m.link)">{{ m.name | translate }}</div>
                 <div *ngIf="m.children" class="pt-3 pb-3 pr-3 d-flex v-center" (click)="menu.setName(m.link)">
                     <div class="flex">{{ m.name | translate }}</div>
-                    <i *ngIf="menu.name.indexOf(m.link) > -1" class="fas fa-angle-up"></i>
-                    <i *ngIf="menu.name.indexOf(m.link) == -1" class="fas fa-angle-down"></i>
+                    <i *ngIf="menu.name == m.link.substring(m.link.lastIndexOf('/') + 1)" class="fas fa-angle-up"></i>
+                    <i *ngIf="menu.name != m.link.substring(m.link.lastIndexOf('/') + 1)" class="fas fa-angle-down"></i>
                 </div>
                 <div *ngIf="m.children" class="sub-panel">
                     <a *ngFor="let sm of m.children" [hidden]="sm.roles.indexOf(authen.user.role) == -1" [routerLink]="sm.link" class="sub-menu" routerLinkActive="active" (click)="menu.hideMenu()">{{ sm.name | translate }}</a>

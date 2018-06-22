@@ -1,11 +1,11 @@
 <div *ngIf="formData != null" class="form-inner">
     <div *ngIf="isDialog" class="tbar d-flex v-center">
-        <div class="page-title ml-3 flex">Test</div>
+        <div class="page-title ml-3 flex">{{title}}</div>
         <div class="nav-icon d-flex v-center h-center" (click)="view.closeDialog()">
             <i class="fas fa-times fa-1-5x"></i>
         </div>
     </div>
-    <div class="form-inner-body" [style.maxHeight]="getBodyHeight() + 'px'">
+    <div class="form-inner-body" [style.maxHeight]="bodyHeight + 'px'">
         <ng-container *ngFor="let i of formData">
             <div #form *ngIf="i.container" class="paper">
                 <div class="container" *ngIf="i.container && i.container.length > 0">
@@ -62,6 +62,6 @@
             </div>
         </ng-container>
     </div>
-    <div [id]="'bbar_' + formId" *ngIf="isDialog" class="tbar d-flex v-center">
+    <div [id]="'bbar_' + formId" *ngIf="isDialog && hasToolbar" class="bbar d-flex v-center">
     </div>
 </div>

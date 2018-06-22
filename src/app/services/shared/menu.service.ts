@@ -23,7 +23,8 @@ export class MenuService {
     }
 
     setName(name: string): void {
-        if (this.name.indexOf(name) > -1) {
+        name = name.substring(name.lastIndexOf('/') + 1);
+        if (this.name == name) {
             this.name = "";
         }
         else {

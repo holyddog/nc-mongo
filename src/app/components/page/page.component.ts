@@ -25,7 +25,6 @@ export class PageComponent implements OnInit {
                     id: +params['id'],
                     params: this.queryParams
                 });
-                console.log(Ext.ComponentManager.count);
 
                 // setTimeout(() => {
                 //     this.view.addDialog({

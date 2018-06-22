@@ -124,21 +124,33 @@ legend {
     z-index: 1000;
 }
 
-.tbar {
+.tbar,
+.bbar {
     height: 64px;
     background-color: #fff;
+    z-index: 1001;
+}
+
+.tbar {
     -webkit-box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
     -moz-box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
     -ms-box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-    z-index: 1001;
+}
+
+.bbar {
+    -webkit-box-shadow: 0 -1px 2px 0 rgba(0, 0, 0, 0.2);
+    -moz-box-shadow: 0 -1px 2px 0 rgba(0, 0, 0, 0.2);
+    -ms-box-shadow: 0 -1px 2px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 0 -1px 2px 0 rgba(0, 0, 0, 0.2);
 }
 
 .tbar.logo_panel {
     background-color: #1E88E5;
 }
 
-.tbar .nav-icon {
+.tbar .nav-icon,
+.bbar .nav-icon {
     margin: 8px;
     width: 48px;
     height: 48px;
@@ -198,43 +210,43 @@ legend {
 }
 
 .ext-primary {
-    background-color: #2196F3;
-    border-color: #1976D2 !important;
+    background-color: #4CAF50 !important;
+    border-color: #388E3C !important;
 }
 
 .ext-primary.x-btn.x-btn-disabled,
 .ext-primary.x-btn-over {
-    background-color: #42A5F5 !important;
+    background-color: #66BB6A !important;
 }
 
 .ext-secondary {
-    background-color: #FF5722;
-    border-color: #E64A19 !important;
+    background-color: #2196F3 !important;
+    border-color: #1976D2 !important;
 }
 
 .ext-secondary.x-btn.x-btn-disabled,
 .ext-secondary.x-btn-over {
-    background-color: #FF7043 !important;
+    background-color: #42A5F5 !important;
 }
 
 .ext-grey {
-    background-color: #757575;
+    background-color: #757575 !important;
     border-color: #424242 !important;
 }
 
 .ext-grey.x-btn.x-btn-disabled,
 .ext-grey.x-btn-over {
-    background-color: #9E9E9E;
+    background-color: #9E9E9E !important;
 }
 
 .ext-red {
-    background-color: #E53935;
+    background-color: #E53935 !important;
     border-color: #C62828 !important;
 }
 
 .ext-red.x-btn.x-btn-disabled,
 .ext-red.x-btn-over {
-    background-color: #F44336;
+    background-color: #F44336 !important;
 }
 
 .display-caption .x-form-display-field-default {
