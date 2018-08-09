@@ -17,7 +17,7 @@ export class ViewService {
         this.loading = false;
     }
 
-    setTitle(title: string, id?: number): void {
+    setTitle(title: string, id?: string): void {
         this.title = title;
 
         if (id != null) {
@@ -108,7 +108,13 @@ export class ViewService {
         this.dialogs.pop();
     }
 
-    setToolbarButtons(id: number, buttons: any[]): void {
+    clearDialogs(): void {
+        while (this.dialogs.length > 0) {
+            this.closeDialog();
+        }
+    }
+
+    setToolbarButtons(id: string, buttons: any[]): void {
         var tbar = Ext.create('Ext.Panel', {
             layout: {
                 type: 'hbox',
@@ -121,9 +127,10 @@ export class ViewService {
                 margin: '0 0 0 10'
             },
             listeners: {
-                show: function(t) {
+                show: function (e) {
                     setTimeout(() => {
-                        t.updateLayout();
+                        var width = e.getEl().dom.getBoundingClientRect().width;
+                        e.updateLayout();
                     }, 0);
                 }
             },
@@ -140,7 +147,7 @@ export class ViewService {
         }
     }
 
-    setDialogToolbarButtons(id: number, buttons: any[]): void {
+    setDialogToolbarButtons(id: string, buttons: any[]): void {
         setTimeout(() => {
             var tbar = Ext.create('Ext.Panel', {
                 layout: {
@@ -155,7 +162,7 @@ export class ViewService {
                     margin: '0 5 0 5'
                 },
                 listeners: {
-                    show: function(t) {
+                    show: function (t) {
                         setTimeout(() => {
                             t.updateLayout();
                         }, 0);
@@ -163,7 +170,7 @@ export class ViewService {
                 },
                 items: buttons
             });
-    
+
             for (let c of Ext.CacheComponents) {
                 if (c.id == id) {
                     c.tbar = tbar;
@@ -172,7 +179,7 @@ export class ViewService {
         }, 0);
     }
 
-    addComponent(id: number, component: any): void {
+    addComponent(id: string, component: any): void {
         for (let c of Ext.CacheComponents) {
             if (c.id == id) {
                 c.items.push(component);
@@ -181,7 +188,7 @@ export class ViewService {
         }
     }
 
-    getComponentItems(id: number): any[] {
+    getComponentItems(id: string): any[] {
         for (let c of Ext.CacheComponents) {
             if (c.id == id) {
                 return c.items;
@@ -190,7 +197,7 @@ export class ViewService {
         return [];
     }
 
-    clearComponent(): void {        
+    clearComponent(): void {
         Ext.CacheComponents.map(c => {
             c.items.map(i => {
                 i.destroy();
@@ -198,15 +205,21 @@ export class ViewService {
             if (c.tbar) {
                 c.tbar.destroy();
             }
-        });            
+        });
         Ext.CacheComponents = [];
     }
 
-    clearToolbar(): void {        
+    clearToolbar(): void {
         Ext.CacheComponents.map(c => {
             if (c.tbar) {
                 c.tbar.destroy();
             }
-        });            
+        });
+    }
+
+    alert(message: string, title: string = 'แจ้งเตือน'): Promise<any> {
+        return new Promise<any>((resolve) => {
+            Ext.MessageBox.alert(title, message, resolve);
+        });
     }
 }

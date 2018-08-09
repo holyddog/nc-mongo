@@ -198,6 +198,10 @@ legend {
     padding-bottom: .35rem;
 }
 
+.ext-form-readonly {
+    background-color: #eee !important;
+}
+
 @media (max-width: 575.98px) {
     .paper {
         padding-left: 5px;
@@ -253,6 +257,10 @@ legend {
     color: #666 !important;
 }
 
+.x-btn.x-btn-disabled {
+    pointer-events: none;
+}
+
 .ext-list .x-toolbar-footer {
     padding: 10px 0 0;
 }
@@ -281,6 +289,10 @@ legend {
 
 .ext-file-upload .x-form-trigger.x-form-trigger-cmp {
     text-align: left;
+}
+
+.ext-col-bl-line {
+    border-left: solid 1px #cfcfcf;
 }
 
 .pic-box {

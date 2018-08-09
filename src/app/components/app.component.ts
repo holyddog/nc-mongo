@@ -37,12 +37,14 @@ export class AppComponent implements OnInit {
 })
 export class AppTemplateComponent implements OnInit {
     menus: any[] = [];
+    config: any = Config;
 
     constructor(private location: Location, private router: Router, private title: Title, public app: AppService, private menu: MenuService, private view: ViewService, public authen: AuthenService, private formService: FormService) {
         router.events.subscribe((val) => {
             if (val instanceof NavigationEnd) {                
                 // this.view.clearComponent();
                 this.view.title = Config.AppName;
+                this.view.clearDialogs();
                 
                 // this.menu.hideMenu(this.location.path());
             }

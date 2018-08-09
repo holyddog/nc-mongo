@@ -7,6 +7,10 @@
     width: 100%;
 }
 
+.x-form-file-wrap .x-form-trigger-wrap {
+    width: auto !important;
+}
+
 legend.x-fieldset-header-default {
     display: inline-block;
     padding: 0 .5rem !important;
@@ -26,6 +30,7 @@ legend.x-fieldset-header-default {
 .x-form-text-default,
 .x-form-item-label-default,
 .x-btn-inner-default-medium,
+.x-btn-inner-default-toolbar-medium,
 .x-column-header,
 .x-grid-item,
 .x-toolbar-text-default,
@@ -36,6 +41,10 @@ legend.x-fieldset-header-default {
 
 .x-btn-inner-default-large {
     font: 300 14px 'Kanit', sans-serif;
+}
+
+.x-btn-inner-default-toolbar-medium {
+    color: #fff;
 }
 
 .x-toolbar-footer {
@@ -86,6 +95,15 @@ legend.x-fieldset-header-default {
 .x-grid-checkcolumn-cell-inner {
     padding-left: 0;
     padding-right: 0;
+    cursor: pointer;
+}
+
+.x-column-header-checkbox {
+    cursor: pointer;
+}
+
+.x-column-header:last-child {
+    border-right-style: none;
 }
 
 .ext-auto-height .x-grid-with-row-lines .x-grid-item:last-child {

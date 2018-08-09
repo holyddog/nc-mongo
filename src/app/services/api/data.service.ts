@@ -66,12 +66,58 @@ export class DataService {
         }
     }
 
+    saveData(config: any): Promise<any> {
+        let headers = new HttpHeaders();
+        if (config.headers) {
+            for (let i in config.headers) {
+                headers = headers.set(i, config.headers[i]);
+            }
+        }
+        if (config.authen) {
+            headers = this.authorizationHeader().headers;
+        }
+
+        if (config.type == 'api') {
+            if (!config.method) {
+                config.method = 'POST';
+            }
+
+            if (config.method.toUpperCase() == 'PUT') {
+                return this.http.put(config.url, config.params, { headers: headers }).toPromise();
+            }
+            else {
+                return this.http.post(config.url, config.params, { headers: headers }).toPromise();
+            }
+        }
+        else if (config.type == 'mongo') {
+            let data: any = {
+                collection: config.collection,
+                pk: config.pk,
+                data: config.params
+            };
+            return this.http.post(Config.ServiceUrl + '/forms', data).toPromise();
+        }
+        else {
+            return Promise.resolve();
+        }
+
+    }
+
     findByKey(key: any, collection: string, pk: string): Promise<any> {
         return this.http.get(Config.ServiceUrl + '/data/' + key + '?collection=' + collection + '&pk=' + pk).toPromise();
     }
 
+    loadScript(id: string): Promise<any> {
+        return this.http.get(Config.ServiceUrl + '/js/' + id, { responseType: 'text' }).toPromise();
+    }
+
     uploadPicture(formData: FormData): Promise<any> {
         return this.http.post(Config.ServiceUrl + '/upload/pictures', formData)
+            .toPromise();
+    }
+
+    uploadExcel(formData: FormData): Promise<any> {
+        return this.http.post(Config.ServiceUrl + '/read-excel', formData)
             .toPromise();
     }
 

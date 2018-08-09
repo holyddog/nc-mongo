@@ -4,6 +4,7 @@ export const LANG_TH_TRANS = {
     'password': 'รหัสผ่าน',
     'search': 'ค้นหา',
     'save': 'บันทึก',
+    'select': 'เลือก',
     'edit': 'แก้ไข',
     'delete': 'ลบ',
     'clear': 'เคลียข้อมูล',
@@ -12,6 +13,8 @@ export const LANG_TH_TRANS = {
     'load_more': 'โหลดข้อมูลเพิ่ม',
     'alert': 'แจ้งเตือน',
     'select_photo': 'เลือกรูป',
+    'select_file': 'เลือกไฟล์',
+    'export_excel': 'ดึงข้อมูลเป็น Excel',
     'save_success': 'การบันทึกข้อมูลเสร็จสมบูรณ์',
 
     'dashboard': 'ภาพรวมการใช้งาน',

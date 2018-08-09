@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, QueryList, ViewChildren,  } from '@angular/core';
 import { ActivatedRoute, Params } from '@angular/router';
 import { ViewService } from '../../services/shared/view.service';
+import { FormComponent } from '../form/form.component';
 
 declare var Ext: any;
 
@@ -10,9 +11,16 @@ declare var Ext: any;
     styleUrls: ['./page.component.css']
 })
 export class PageComponent implements OnInit {
+    @ViewChildren(FormComponent) forms: QueryList<FormComponent>;
+    appForms = [];
+
     queryParams: any;
 
     constructor(public view: ViewService, private route: ActivatedRoute) { }
+
+    ngAfterViewInit() {
+        this.appForms = this.forms.toArray();
+    }
 
     ngOnInit() {
         this.route.queryParams.forEach((params: Params) => {
@@ -22,7 +30,7 @@ export class PageComponent implements OnInit {
         this.route.params.forEach((params: Params) => {
             if (params['id']) {
                 this.view.setForm({
-                    id: +params['id'],
+                    id: params['id'],
                     params: this.queryParams
                 });
 

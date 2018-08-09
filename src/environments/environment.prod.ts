@@ -7,12 +7,16 @@ export const environment = {
 var host = window.location.host;
 
 export const Config = {
-    AppName: 'NC Mongo',
+    AppName: 'NC BOM',
+    PageSize: 10,
 
-    ServiceUrl: 'http://localhost:3000',
-    FileUrl: 'http://localhost:3000/files',
-    ImageUrl: 'http://27.254.138.120:3203/files',
-    ServiceVersion: 'v1.0',
+    // ServiceUrl: 'http://27.254.138.120:3208',
+    // FileUrl: 'http://27.254.138.120:3208/files',
+    // ImageUrl: 'http://27.254.138.120:3203/files',
+    
+    ServiceUrl: 'http://203.154.51.242',
+    FileUrl: 'http://203.154.51.242/files',
+    ImageUrl: 'http://203.154.51.242/files',
 
     StoragePrefix: 'ncMongo-'
 };

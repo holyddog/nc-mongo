@@ -18,22 +18,33 @@ declare var Ext: any;
     styleUrls: ['./form.component.css']
 })
 export class FormComponent implements OnInit {
-    @Input()  formId: number;
-    @Input()  queryParams: any;
-    @Input()  isDialog: boolean;
-    
+    @Input() formId: string;
+    @Input() queryParams: any;
+    @Input() isDialog: boolean;
+    @Input() size: any;
+    @Input() parent: any;
+
     title: string;
     combSeq: number = 1;
     collection: string;
     pk: string;
     hasKey: boolean = false;
     hasToolbar: boolean = false;
+    viewMode: boolean = false;
     formData: any[] = null;
     remoteData: any[] = [];
+    saveData: any[] = [];
+    resultData: any[] = [];
     ds: any[] = [];
     dsData: any = {};
     bodyHeight: number;
-    center: any = ["@OUTLET_ID", "@OUTLET_NAME", "@USER_ID", "@USER_NAME"];
+    formWidth: string = "100%";
+    center: any = ["@OUTLET_ID", "@OUTLET_NAME", "@USER_ID", "@USER_NAME", "@DATE"];
+
+    hasScript: boolean = false;
+    onLoad: any;
+    onBeforeSave: any;
+    onAfterSave: any;
 
     constructor(private router: Router, private route: ActivatedRoute, private authen: AuthenService, private app: AppService, private translate: TranslateService, private view: ViewService, private formService: FormService, private dataService: DataService) {
         router.events.subscribe((val) => {
@@ -44,186 +55,321 @@ export class FormComponent implements OnInit {
     }
 
     ngOnInit() {
+        if (this.size == "sm") {
+            this.formWidth = "480px";
+        }
+        else if (this.size == "md") {
+            this.formWidth = "768px";
+        }
         this.bodyHeight = window.innerHeight - 128 - 30;
-        // this.route.queryParams.forEach((params: Params) => {
-        //     this.queryParams = params;
+
+        // this.dataService.loadScript(this.formId).then(data => {
+        //     var angular = this;
+        //     eval(data);
         // });
 
-        console.log(this.view.forms);
-        
         if (this.formId) {
             this.view.loading = true;
             this.formService.findById(this.formId)
                 .then(data => {
                     if (!data.error) {
-                        if (data.title) {
-                            this.title = data.title;
-                            if (!this.isDialog) {
-                                this.view.setTitle(this.title, this.formId);
+                        if (data.script == true) {
+                            this.hasScript = true;
+
+                            return new Promise<any>((resolve, reject) => {
+                                this.dataService.loadScript(this.formId)
+                                    .then(scriptData => {
+                                        var a = this;
+                                        eval(scriptData);
+                                        resolve(data);
+                                    })
+                                    .catch(() => {
+                                        resolve(data);
+                                    });
+                            });
+                        }
+                        else {
+                            return Promise.resolve(data);
+                        }
+                    }
+                    else {
+                        throw {};
+                    }
+                })
+                .then((data: any) => {
+                    let pk: any[] = data.pk;
+                    if (pk) {
+                        var checkCount = 0;
+                        for (let i in this.queryParams) {
+                            if (pk.indexOf(i) > -1 && this.queryParams[i]) {
+                                checkCount++;
+                            }
+
+                            if (i == 'view' && this.queryParams[i] == 1) {
+                                this.viewMode = true;
                             }
                         }
+                        if (checkCount == pk.length) {
+                            this.hasKey = true;
+                        }
+                    }
 
-                        let pk: any[] = data.pk;
-                        if (pk) {
-                            var checkCount = 0;
-                            for (let i in this.queryParams) {
-                                if (pk.indexOf(i) > -1 && this.queryParams[i]) {
-                                    checkCount++;
+                    if (data.title) {
+                        if (typeof data.title == 'string') {
+                            this.title = data.title;
+                        }
+                        else {
+                            if (this.hasKey) {
+                                if (this.viewMode) {
+                                    this.title = data.title['view'];
+                                }
+                                else {
+                                    this.title = data.title['edit'];
                                 }
                             }
-                            if (checkCount == pk.length) {
-                                this.hasKey = true;
-                            }
                         }
 
-                        this.ds = data.ds;
+                        if (!this.isDialog) {
+                            this.view.setTitle(this.title, this.formId);
+                        }
+                    }
 
-                        this.prepare(data.data);
-                        this.render()
-                            .then(() => {
-                                return this.fetchDataSource();
-                            })
-                            .then(() => {
-                                return this.fetchRemoteData();
-                            })
-                            .then(() => {
-                                var ds = this.dsData;
-                                for (let c of this.view.getComponentItems(this.formId)) {
-                                    if (c.mapping) {
-                                        var value;
-                                        var dsName = c.mapping.substring(0, c.mapping.indexOf('.'));
-                                        if (ds[dsName]) {
-                                            eval('value = ds.' + c.mapping + '');
+                    this.ds = data.ds;
 
-                                            if (value) {
+                    this.prepare(data.data);
+                    this.render()
+                        .then(() => {
+                            return this.fetchDataSource();
+                        })
+                        .then(() => {
+                            return this.fetchRemoteData();
+                        })
+                        .then(() => {
+                            var ds = this.dsData;
+                            for (let c of this.view.getComponentItems(this.formId)) {
+                                if (c.mapping) {
+                                    var value;
+                                    var dsName = c.mapping.substring(0, c.mapping.indexOf('.'));
+                                    if (ds[dsName]) {
+                                        eval('value = ds.' + c.mapping + '');
+
+                                        if (value) {
+                                            if (c.type == 'date' || c.type == 'time') {
+                                                c.setValue(new Date(value));
+                                            }
+                                            else if (c.type == 'grid') {
+                                                c.getStore().loadData(value);
+                                            }
+                                            else {
                                                 c.setValue(value);
                                             }
                                         }
                                     }
                                 }
+                            }
 
-                                var save = data.save;
+                            var save = data.save;
 
-                                this.view.loading = false;
-                                if (data.tbar) {
-                                    this.hasToolbar = true;
+                            this.view.loading = false;
+                            if (data.tbar) {
+                                this.hasToolbar = true;
 
-                                    let tbar: any[] = [];
-                                    let lang: string = this.translate._currentLang;
-                                    for (let b of data.tbar) {
-                                        var cls = 'ext-secondary';
+                                let tbar: any[] = [];
+                                let lang: string = this.translate._currentLang;
+                                for (let b of data.tbar) {
+                                    var cls = 'ext-secondary';
+                                    if (b.action) {
                                         if (b.action.type == 'save') {
                                             if (!b.icon) {
-                                               b.icon = 'fa-save';
-                                               cls = 'ext-primary';
+                                                b.icon = 'fa-save';
+                                            }
+                                            cls = 'ext-primary';
+                                        }
+                                        else if (b.action.type == 'select') {
+                                            if (!b.icon) {
+                                                b.icon = 'fa-check';
                                             }
                                         }
+                                    }
 
-                                        var button = Ext.create('Ext.Button', {
-                                            text: (typeof b.text == 'object') ? b.text[lang] : this.translate.instant(b.text),
-                                            scale: 'large',
-                                            cls: cls,
-                                            iconCls: 'fas ' + b.icon + ' fa-1-5x',
-                                            handler: function () {
-                                                if (this.action.type == 'link') {
-                                                    this.angular.router.navigate([this.action.path]);
+                                    if (b.cls) {
+                                        cls = b.cls;
+                                    }
+
+                                    let hidden: boolean = false;
+                                    if (b.visible) {
+                                        for (let v in b.visible) {
+                                            if (b.visible[v] == 0) {
+                                                if (v == 'view' && this.viewMode) {
+                                                    hidden = true;
                                                 }
-                                                else if (this.action.type == 'openForm') {
-                                                    this.angular.view.addForm({
-                                                        id: this.action.id,
-                                                        params: {}
+                                            }
+                                        }
+                                    }
+
+                                    var button = Ext.create('Ext.Button', {
+                                        text: (typeof b.text == 'object') ? b.text[lang] : this.translate.instant(b.text),
+                                        scale: 'medium',
+                                        cls: cls,
+                                        iconCls: 'fas ' + b.icon + ' fa-1x',
+                                        hidden: hidden,
+                                        handler: function () {
+                                            if (this.action.type == 'link') {
+                                                this.angular.router.navigate([this.action.path]);
+                                            }
+                                            else if (this.action.type == 'open') {
+                                                this.angular.open(this.action);
+                                            }
+                                            else if (this.action.type == 'select') {
+                                                if (this.action.src) {
+                                                    let itemsData: any[] = [];
+                                                    var selectedItems = this.angular.getCmp(this.action.src).getSelectionModel().getSelected().items;
+                                                    for (let it of selectedItems) {
+                                                        itemsData.push(it.data);
+                                                    }
+                                                    console.log(itemsData);
+
+                                                    let appForms: any[] = this.angular.parent.appForms;
+                                                    let parentForm: any = appForms[this.angular.view.forms.length - ((this.angular.isDialog)? 1: 2)];
+                                                    console.log(parentForm.formId);
+
+                                                    console.log(this.angular.queryParams['ref']);
+                                                }
+                                            }
+                                            else if (this.action.type == 'save') {
+                                                this.setDisabled(true);
+
+                                                let finishSave = () => {
+                                                    this.setDisabled(false);
+
+                                                    this.angular.view.alert(this.angular.translate.instant('save_success')).then(() => {
+                                                        if (save.onFinish) {
+                                                            if (save.onFinish == 'back') {
+                                                                this.angular.view.closeForm();
+                                                            }
+                                                        }
                                                     });
-                                                }
-                                                else if (this.action.type == 'openDialog') {
-                                                    this.angular.view.addDialog({
-                                                        id: this.action.id,
-                                                        title: this.angular.title,
-                                                        params: {}
-                                                    });
-                                                }
-                                                else if (this.action.type == 'save') {
-                                                    this.setDisabled(true);
-                                                    let saveData = (index: number, endPoint: any): void => {
-                                                        if (index < endPoint.length) {
-                                                            this.angular.save(endPoint[index])
-                                                                .then(resultData => {
-                                                                    // if (resultData && !this.angular.key) {
-                                                                    //     this.angular.router.navigate([this.angular.router.url, resultData.id]);
-                                                                    // }
-                                                                    console.log(endPoint[index].api.url, resultData);
-                                                                    saveData(index + 1, endPoint);
-                                                                })
-                                                                .catch((err) => {
-                                                                    console.log('error', err);
-                                                                    saveData(index + 1, endPoint);
+                                                };
+
+                                                let saveData = (index: number, endPoint: any): void => {
+                                                    if (index < endPoint.length) {
+                                                        this.angular.dataService.saveData(endPoint[index])
+                                                            .then(resultData => {
+                                                                this.angular.resultData.push(resultData);
+                                                                saveData(index + 1, endPoint);
+                                                            })
+                                                            .catch(err => {
+                                                                console.log('error', err);
+                                                                saveData(index + 1, endPoint);
+                                                            });
+
+                                                        // console.log(endPoint[index]);
+                                                        // saveData(index + 1, endPoint);
+                                                    }
+                                                    else {
+                                                        this.angular.saveData = [];
+
+                                                        if (typeof this.angular.onAfterSave == 'function') {
+                                                            new Promise<any>((resolve, reject) => {
+                                                                this.angular.onAfterSave(resolve);
+                                                            })
+                                                                .then(() => {
+                                                                    finishSave();
                                                                 });
                                                         }
                                                         else {
-                                                            this.setDisabled(false);
-                                                        }
-                                                    };
-                                                    if (!this.hasKey) {
-                                                        if (save.insert && save.insert.length > 0) {
-                                                            saveData(0, save.insert);
-                                                        }
-                                                        else {                                                                
-                                                            this.setDisabled(false);
+                                                            finishSave();
                                                         }
                                                     }
-                                                    else {                                       
-                                                        this.setDisabled(false);
+                                                };
+                                                if (!this.angular.hasKey) {
+                                                    if (save.insert && save.insert.length > 0) {
+                                                        this.angular.fetchSave(save.insert);
+
+                                                        if (typeof this.angular.onBeforeSave == 'function') {
+                                                            new Promise<any>((resolve, reject) => {
+                                                                this.angular.onBeforeSave(resolve);
+                                                            })
+                                                                .then(() => {
+                                                                    saveData(0, this.angular.saveData);
+                                                                });
+                                                        }
+                                                        else {
+                                                            saveData(0, this.angular.saveData);
+                                                        }
+                                                    }
+                                                    else {
+                                                        finishSave();
+                                                    }
+                                                }
+                                                else {
+                                                    if (save.update && save.update.length > 0) {
+                                                        this.angular.fetchSave(save.update);
+
+                                                        if (typeof this.angular.onBeforeSave == 'function') {
+                                                            new Promise<any>((resolve, reject) => {
+                                                                this.angular.onBeforeSave(resolve);
+                                                            })
+                                                                .then(() => {
+                                                                    saveData(0, this.angular.saveData);
+                                                                });
+                                                        }
+                                                        else {
+                                                            saveData(0, this.angular.saveData);
+                                                        }
+                                                    }
+                                                    else {
+                                                        finishSave();
                                                     }
                                                 }
                                             }
-                                        });
-                                        button.action = b.action;
-                                        button.angular = this;
-                                        tbar.push(button);
-                                    }
+                                        }
+                                    });
+                                    button.action = b.action;
+                                    button.angular = this;
+                                    tbar.push(button);
+                                }
 
-                                    if (!this.isDialog) {
-                                        this.view.setToolbarButtons(this.formId, tbar);
-                                    }
-                                    else {
-                                        this.view.setDialogToolbarButtons(this.formId, tbar);
-                                    }
+                                if (!this.isDialog) {
+                                    this.view.setToolbarButtons(this.formId, tbar);
                                 }
                                 else {
-                                    this.bodyHeight = window.innerHeight - 64 - 30;
+                                    this.view.setDialogToolbarButtons(this.formId, tbar);
                                 }
+                            }
+                            else {
+                                this.bodyHeight = window.innerHeight - 64 - 30;
+                            }
 
-                                if (this.hasKey) {
-                                    setTimeout(() => {
-                                        // this.dataService.findByKey(this.key, this.collection, this.pk)
-                                        //     .then(resultData => {
-                                        //         for (let d in resultData) {
-                                        //             var cmp = Ext.ComponentQuery.query('[name=' + d + ']');
-                                        //             if (cmp && cmp.length) {
-                                        //                 var value = resultData[d];
+                            if (typeof this.onLoad == 'function') {
+                                this.onLoad();
+                            }
 
-                                        //                 if (cmp[0].dataMapping) {
-                                        //                     let mappings: string[] = cmp[0].dataMapping.split('.');
-                                        //                     if (mappings.length > 1) {
-                                        //                         for (var i = 1; i < mappings.length; i++) {
-                                        //                             value = value[mappings[i]];
-                                        //                         }
-                                        //                     }
-                                        //                 }
+                            if (this.hasKey) {
+                                setTimeout(() => {
+                                    // this.dataService.findByKey(this.key, this.collection, this.pk)
+                                    //     .then(resultData => {
+                                    //         for (let d in resultData) {
+                                    //             var cmp = Ext.ComponentQuery.query('[name=' + d + ']');
+                                    //             if (cmp && cmp.length) {
+                                    //                 var value = resultData[d];
 
-                                        //                 cmp[0].setValue(value);
-                                        //             }
-                                        //         }
-                                        //     });
-                                    }, 0);
-                                }
-                            });
-                    }
-                    else {
-                        this.formData = null;
-                        this.remoteData = [];
-                        this.ds = [];
-                        this.view.loading = false;
-                    }
+                                    //                 if (cmp[0].dataMapping) {
+                                    //                     let mappings: string[] = cmp[0].dataMapping.split('.');
+                                    //                     if (mappings.length > 1) {
+                                    //                         for (var i = 1; i < mappings.length; i++) {
+                                    //                             value = value[mappings[i]];
+                                    //                         }
+                                    //                     }
+                                    //                 }
+
+                                    //                 cmp[0].setValue(value);
+                                    //             }
+                                    //         }
+                                    //     });
+                                }, 0);
+                            }
+                        });
                 })
                 .catch(data => {
                     this.formData = null;
@@ -233,8 +379,24 @@ export class FormComponent implements OnInit {
                 });
         }
     }
-    
-    getCenterParam(name: string): any {        
+
+    open(action: any, params: any = {}): void {
+        if (!action.dialog) {
+            this.view.addForm({
+                id: action.id,
+                params: params
+            });
+        }
+        else {
+            this.view.addDialog({
+                id: action.id,
+                size: action.dialog.size,
+                params: params
+            });
+        }
+    }
+
+    getCenterParam(name: string): any {
         if (name == '@OUTLET_ID') {
             return this.authen.user.outlet_id;
         }
@@ -247,14 +409,14 @@ export class FormComponent implements OnInit {
         else if (name == '@USER_NAME') {
             return this.authen.user.name;
         }
-        return null;
+        return name;
     }
 
     fetchDataSource(): Promise<any> {
         return new Promise<any>((resolve, reject) => {
             if (this.ds && this.ds.length > 0) {
                 let fetch = (index: number) => {
-                    if (index < this.ds.length) {                        
+                    if (index < this.ds.length) {
                         var ds = this.ds[index];
                         var config = ds.api || ds.mongo || ds.sql;
 
@@ -284,7 +446,7 @@ export class FormComponent implements OnInit {
 
                                 if (valid) {
                                     if (!params[p] || (params[p] && params[p] == "") || params[p].toString().startsWith('@')) {
-                                        valid = false;                                    
+                                        valid = false;
                                     }
                                 }
                             }
@@ -313,7 +475,7 @@ export class FormComponent implements OnInit {
             }
             else {
                 this.ds = [];
-                resolve();                
+                resolve();
             }
         });
     }
@@ -327,13 +489,28 @@ export class FormComponent implements OnInit {
         return null;
     }
 
-    save(config: any): Promise<any> {
-        return new Promise<any>((resolve, reject) => {
+    fetchSave(saves: any[]): void {
+        for (let config of saves) {
             var data = config.api || config.mongo || config.sql;
+            var mode = '';
+            if (config.api) {
+                mode = 'api';
+            }
+            else if (config.mongo) {
+                mode = 'mongo';
+            }
             var params = {};
             for (let p in data.params) {
-                var pValue = data.params[p];                              
-                if (this.center.indexOf(pValue) > -1) {
+                var pValue = data.params[p];
+                if (pValue.toString().startsWith('@params')) {
+                    var name = pValue.replace('@params.', '');
+                    params[p] = this.queryParams[name];
+                }
+                else if (pValue.toString().startsWith('@ds')) {
+                    var name = pValue.replace('@ds.', '');
+                    eval('params[p] = this.dsData.' + name);
+                }
+                else if (this.center.indexOf(pValue) > -1) {
                     params[p] = this.getCenterParam(pValue);
                 }
                 else if (pValue.toString().startsWith('@')) {
@@ -345,131 +522,58 @@ export class FormComponent implements OnInit {
                     }
                     var o = this.getCmp(name);
                     if (o) {
-                        let value: any = (isRaw && typeof o.getRawValue == 'function')? o.getRawValue(): o.getValue();
+                        let value: any = (isRaw && typeof o.getRawValue == 'function') ? o.getRawValue() : o.getValue();
                         if (o.json && typeof value == 'string') {
                             value = JSON.parse(value);
                         }
+                        else if (value instanceof Date) {
+                            if (mode == 'mongo') {
+                                value = {
+                                    type: 'date',
+                                    value: value
+                                };
+                            }
+                            else if (mode == 'api') {
+                                var tz = (new Date()).getTimezoneOffset() * 60000;
+                                value = new Date(value.getTime() - tz).toISOString().slice(0, -1);
+                            }
+                        }
+
                         params[p] = value;
                     }
                     else {
-                        params[p] = pValue;
+                        params[p] = null;
                     }
                 }
                 else {
                     params[p] = pValue;
                 }
             }
-            resolve(params);
 
-            // let data: any = [];
-            // var fetchRows = (rows: any[]) => {
-            //     if (!rows) {
-            //         return;
-            //     }
+            let info: any = {};
 
-            //     for (let r of rows) {
-            //         if (r.cols) {
-            //             for (let c of r.cols) {
-            //                 if (c.save) {
-            //                     let name: any = c.save[mode];
-            //                     if (name && (c.insertOnly != true && c.updateOnly != true) || (c.insertOnly == true && !this.hasKey) || (c.updateOnly == true && this.hasKey)) {
-            //                         var cmp = Ext.ComponentQuery.query('[name=' + name + ']');
-            //                         if (cmp && cmp.length) {
-            //                             var cmpValue = cmp[0].getValue();
-            //                             if (cmp[0].json && cmpValue) {
-            //                                 cmpValue = JSON.parse(cmpValue);
-            //                             }
-            //                             let value: any = {
-            //                                 field: name,
-            //                                 value: cmpValue
-            //                             };
-            //                             if (['currency', 'date'].indexOf(c.type) > -1) {
-            //                                 value.type = c.type;
-            //                             }
-            //                             if (c.sysDate == true) {
-            //                                 value.sysDate = true;
-            //                             }
-            //                             data.push(value);
-            //                         }
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     }
-            // };
+            if (data.authen) {
+                info.authen = true;
+            }
+            if (config.api) {
+                info.type = "api";
+                info.url = config.api.url;
+                if (config.api.method) {
+                    info.method = config.api.method;
+                }
+            }
+            else if (config.mongo) {
+                info.type = "mongo";
+                info.collection = config.mongo.collection;
 
-            // let fields: any[] = [];
-            // for (let i of this.formData) {
-            //     if (i.container) {
-            //         for (let con of i.container) {
-            //             if (con.rows && con.rows.length > 0) {
-            //                 fetchRows(con.rows);
-            //             }
-            //             else if (con.fieldset) {
-            //                 fetchRows(con.fieldset.rows);
-            //             }
-            //             else if (con.tab && con.tab.items && con.tab.items.length > 0) {
-            //                 for (let t of con.tab.items) {
-            //                     if (t.container) {
-            //                         for (let tcon of t.container) {
-            //                             if (tcon.rows && tcon.rows.length) {
-            //                                 fetchRows(tcon.rows);
-            //                             }
-            //                             else if (tcon.fieldset) {
-            //                                 fetchRows(tcon.fieldset.rows);
-            //                             }
-            //                         }
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
-
-            // // let data: any = [];
-            // // for (let f of fields) {
-            // //     let name: string = f.form;
-            // //     let field: string = (f.db)? f.db: f.form;
-            // //     var cmp = Ext.ComponentQuery.query('[name=' + name + ']');
-            // //     if (cmp && cmp.length) {
-            // //         let value: any = {
-            // //             field: field,
-            // //             value: cmp[0].getValue()
-            // //         };
-            // //         if (f.type == 'currency') {
-            // //             value.type = f.type;
-            // //         }
-            // //         data.push(value);
-            // //     }
-            // // }
-
-            // resolve(data);
-
-            // // var savePromise;
-            // // if (this.hasKey) {
-            // //     var filter = {};
-            // //     filter[this.pk] = +this.hasKey;
-            // //     savePromise = this.formService.update({
-            // //         collection: this.collection,
-            // //         filter: filter,
-            // //         data: data
-            // //     });
-            // // }
-            // // else {
-            // //     savePromise = this.formService.insert({
-            // //         collection: this.collection,
-            // //         pk: this.pk,
-            // //         data: data
-            // //     });
-            // // }
-
-            // // savePromise.then(resultData => {
-            // //     this.loading = false;
-            // //     Ext.MessageBox.alert(this.translate.instant('alert'), this.translate.instant('save_success'), () => {
-            // //         resolve(resultData);
-            // //     });
-            // // });
-        });
+                if (config.mongo.pk) {
+                    info.pk = config.mongo.pk;
+                }
+            }
+            this.saveData.push(Object.assign({
+                params: params
+            }, info));
+        }
     }
 
     prepare(data: any[]): void {
@@ -566,6 +670,9 @@ export class FormComponent implements OnInit {
                                 cmp.type = c.type;
 
                                 if (cmp.xtype) {
+                                    if (!cmp.name && c.name) {
+                                        cmp.name = c.name;
+                                    }
                                     cmp.data = {};
 
                                     if (c.query) {
@@ -573,6 +680,13 @@ export class FormComponent implements OnInit {
                                     }
                                     if (c.paging) {
                                         var dataConfig = c.paging.mongo || c.paging.api || c.paging.sql;
+                                        if (c.paging.mongo) {
+                                            cmp.data.mode = 'mongo';
+                                        }
+                                        else if (c.paging.api) {
+                                            cmp.data.mode = 'api';
+                                        }
+
                                         if (dataConfig)
                                             cmp.data.config = dataConfig;
                                     }
@@ -647,12 +761,13 @@ export class FormComponent implements OnInit {
                 .then(data => {
                     var resultData = data;
                     if (config.mapping) {
-                        let mappings: string[] = config.mapping.split('.');
-                        if (mappings.length > 0) {
-                            for (var i = 0; i < mappings.length; i++) {
-                                resultData = resultData[mappings[i]];
-                            }
-                        }
+                        eval('resultData = resultData.' + config.mapping);
+                        // let mappings: string[] = config.mapping.split('.');
+                        // if (mappings.length > 0) {
+                        //     for (var i = 0; i < mappings.length; i++) {
+                        //         resultData = resultData[mappings[i]];
+                        //     }
+                        // }
                     }
                     resolve(resultData);
                 })
@@ -667,7 +782,7 @@ export class FormComponent implements OnInit {
             if (this.remoteData.length > 0) {
                 let fetch = (index: number) => {
                     if (index < this.remoteData.length) {
-                        let remoteCmp: any = Ext.getCmp(this.remoteData[index]);                        
+                        let remoteCmp: any = Ext.getCmp(this.remoteData[index]);
                         var config = remoteCmp.api || remoteCmp.mongo || remoteCmp.sql;
 
                         var params = {};
@@ -675,8 +790,12 @@ export class FormComponent implements OnInit {
                         if (config.params) {
                             var ds = this.dsData;
                             for (var p in config.params) {
-                                var pValue = config.params[p];                                
-                                if (this.center.indexOf(pValue) > -1) {
+                                var pValue = config.params[p];
+                                if (pValue.toString().startsWith('@params')) {
+                                    var name = pValue.replace('@params.', '');
+                                    params[p] = this.queryParams[name];
+                                }
+                                else if (this.center.indexOf(pValue) > -1) {
                                     params[p] = this.getCenterParam(pValue);
                                 }
                                 else if (pValue.toString().startsWith('@')) {
@@ -702,7 +821,7 @@ export class FormComponent implements OnInit {
 
                                 if (valid) {
                                     if (!params[p] || (params[p] && params[p] == "") || params[p].toString().startsWith('@')) {
-                                        valid = false;                                    
+                                        valid = false;
                                     }
                                 }
                             }
@@ -742,7 +861,9 @@ export class FormComponent implements OnInit {
         let docks: any[] = [];
 
         if (c.type == 'grid') {
+            config.cls = 'ext-list';
             for (let col of c.columns) {
+                col.cls = "";
                 if (col.type == 'action') {
                     col.config.width = 40 * col.config.items.length;
                     col.config.align = 'center';
@@ -754,25 +875,31 @@ export class FormComponent implements OnInit {
                         col.config.format = 'd/m/Y H:i';
                         column = Ext.create('Ext.grid.column.Date', col.config);
                     }
-                    else {                        
-                        col.config.renderer = function (value, metaData, record, rowIndex, colIndex) {
-                            if (value) {
-                                var column = this.getColumns()[colIndex];
-                                if (column.mapping) {
-                                    var mappings = column.mapping.mapping.split('.');
-                                    if (mappings.length > 1) {
-                                        for (var i = 1; i < mappings.length; i++) {
-                                            value = value[mappings[i]];
+                    else {
+                        if (col.config.renderer) {
+                            eval('col.config.renderer = ' + col.config.renderer);
+                        }
+                        else if (col.mapping || col.action) {
+                            col.config.renderer = function (value, metaData, record, rowIndex, colIndex) {
+                                if (value) {
+                                    var column = this.getColumns()[colIndex];
+                                    if (column.mapping) {
+                                        eval('value = record.data.' + column.mapping);
+                                        // var mappings = column.mapping.split('.');
+                                        // if (mappings.length > 1) {
+                                        //     for (var i = 1; i < mappings.length; i++) {
+                                        //         value = value[mappings[i]];
+                                        //     }
+                                        // }
+                                    }
+                                    if (column.action) {
+                                        if (column.action.type == 'open' || column.action.type == 'link') {
+                                            return `<a style="text-decoration: underline" href="javascript:void(0)">${value}</a>`;
                                         }
                                     }
                                 }
-                                if (column.action) {
-                                    if (column.action.type == 'openForm') {
-                                        return `<a style="text-decoration: underline" href="javascript:void(0)">${value}</a>`;                                        
-                                    }
-                                }
+                                return value;
                             }
-                            return value;
                         }
                         column = Ext.create('Ext.grid.column.Column', col.config);
                     }
@@ -792,10 +919,32 @@ export class FormComponent implements OnInit {
                 }
             }
             config.listeners = {
-                // cellclick: function(o, td, cellIndex, record, tr, rowIndex, e) {
+                cellclick: (o, td, cellIndex, record, tr, rowIndex, e) => {
+                    if (e.target.tagName == 'A') {
+                        var column = o.ownerGrid.getColumns()[cellIndex];
+                        var p = {};
+                        if (column.action.params) {
+                            for (let i in column.action.params) {
+                                var value = column.action.params[i];
+                                if (typeof value == 'string' && value.startsWith('@')) {
+                                    value = record.get(value.substring(1));
+                                }
+                                p[i] = value;
+                            }
+                        }
 
-                // },
-                resize: function(e) {
+                        if (column.action.type == 'open') {
+                            this.open(column.action, p);
+                        }
+                        else if (column.action.type == 'link') {
+                            this.router.navigate([column.action.path], {
+                                queryParams: p
+                            })
+                            // this.open(column.action, p);
+                        }
+                    }
+                },
+                resize: function (e) {
                     if (e.ownerGrid) {
                         setTimeout(() => {
                             var width = e.ownerGrid.getEl().dom.getBoundingClientRect().width;
@@ -804,28 +953,115 @@ export class FormComponent implements OnInit {
                     }
                 }
             };
+
+            if (c.tbar) {
+                let tbarButtons: any[] = [];
+                var viewCount = 0;
+                for (let b of c.tbar) {
+                    if (this.viewMode) {
+                        viewCount++;
+                    }
+                    tbarButtons.push({
+                        scale: 'medium',
+                        cls: 'ext-grey',
+                        text: b.text,
+                        angular: this,
+                        action: b.action,
+                        hidden: this.viewMode,
+                        handler: function () {
+                            var p = {};
+                            if (this.action.params) {
+                                for (let i in this.action.params) {
+                                    var value = this.action.params[i];
+                                    if (value.toString().startsWith('@params')) {
+                                        var name = value.replace('@params.', '');
+                                        p[i] = this.angular.queryParams[name];
+                                    }
+                                    else if (value.toString().startsWith('@')) {
+                                        let v: any = null;
+                                        var o = this.angular.getCmp(value.substring(1));
+                                        if (o && (o.getValue() != undefined || o.getValue() != null)) {
+                                            v = o.getValue();
+                                        }
+                                        p[i] = v;
+                                    }
+                                    else {
+                                        p[i] = value;
+                                    }
+                                }
+                            }
+
+                            if (c.name) {
+                                p['ref'] = c.name;
+                            }
+
+                            if (this.action.type == 'open') {
+                                this.angular.open(this.action, p);
+                            }
+                        }
+                    });
+                }
+
+                var hidden = false;
+                if (viewCount == tbarButtons.length) {
+                    hidden = true;
+                }
+                docks.push({
+                    xtype: 'toolbar',
+                    hidden: hidden,
+                    items: tbarButtons
+                });
+            }
+
+            if (c.selModel) {
+                config.selModel = {
+                    selType: 'checkboxmodel',
+                    checkOnly: true,
+                    allowDeselect: true
+                };
+                columns[0].cls = (columns[0].cls + " ext-col-bl-line").trim();
+            }
         }
         else if (c.type == 'list') {
             config.cls = 'ext-list';
             config.listeners = {
-                cellclick: function (o, td, cellIndex, record, tr, rowIndex, e) {
-                    var link;
+                cellclick: (o, td, cellIndex, record, tr, rowIndex, e) => {
                     if (e.target.tagName == 'A') {
-                        link = e.target;
-                    }
-                    else if (e.target.tagName == 'I') {
-                        link = e.target.parentElement;
-                    }
-
-                    if (link && link.getAttribute('routerLink')) {
-                        var linkPath = link.getAttribute('routerLink');
-                        var query = link.getAttribute('queryParams');
-                        var queryParams = {}
-                        if (query) {
-                            eval('queryParams = ' + query);
+                        var ds = e.target.parentElement.dataset;
+                        if (ds.action) {
+                            var action = JSON.parse(ds.action);
+                            if (action.type == 'open') {
+                                var p = {};
+                                if (action.params) {
+                                    for (let i in action.params) {
+                                        var value = action.params[i];
+                                        if (typeof value == 'string' && value.startsWith('@')) {
+                                            value = record.get(value.substring(1));
+                                        }
+                                        p[i] = value;
+                                    }
+                                }
+                                this.open(action, p);
+                            }
                         }
-                        o.ownerGrid.angular.router.navigate([linkPath], { queryParams: queryParams });
                     }
+                    // var link;
+                    // if (e.target.tagName == 'A') {
+                    //     link = e.target;
+                    // }
+                    // else if (e.target.tagName == 'I') {
+                    //     link = e.target.parentElement;
+                    // }
+
+                    // if (link && link.getAttribute('routerLink')) {
+                    //     var linkPath = link.getAttribute('routerLink');
+                    //     var query = link.getAttribute('queryParams');
+                    //     var queryParams = {}
+                    //     if (query) {
+                    //         eval('queryParams = ' + query);
+                    //     }
+                    //     o.ownerGrid.angular.router.navigate([linkPath], { queryParams: queryParams });
+                    // }
                 }
             };
             var column = Ext.create('Ext.grid.column.Column', {
@@ -844,6 +1080,10 @@ export class FormComponent implements OnInit {
                                 it.cls = 'width-100 width-sm-s d-flex h-center';
                             }
                             template.setAttribute('class', it.cls + ' p-1');
+                            if (it.action) {
+                                template.dataset.action = JSON.stringify(it.action);
+                            }
+
                             parent.appendChild(template);
                             if (it.dataIndex) {
                                 if (it.type == 'image') {
@@ -859,6 +1099,9 @@ export class FormComponent implements OnInit {
                                     var rValue = record.get(it.dataIndex);
                                     if (it.type == 'datetime') {
                                         rValue = Ext.Date.format(new Date(rValue), 'd/m/Y H:i');
+                                    }
+                                    if (it.action && it.action.type == 'open') {
+                                        rValue = `<a style="text-decoration: underline" href="javascript:void(0)">${rValue}</a>`;
                                     }
                                     template.innerHTML = rValue;
                                 }
@@ -925,29 +1168,56 @@ export class FormComponent implements OnInit {
         let store, proxy;
 
         if (c.paging && (c.paging.mongo || c.paging.api || c.paging.sql)) {
-            proxy = {
-                type: 'ajax',
-                url: Config.ServiceUrl + '/data?page=1&size=' + Config.PageSize,
-                paramsAsJson: true,
-                actionMethods: {
-                    create: 'POST',
-                    read: 'POST',
-                    update: 'POST',
-                    destroy: 'POST'
-                },
-                reader: {
-                    type: 'json',
-                    rootProperty: 'data',
-                    totalProperty: 'total'
-                }
-            };
-
             var dataConfig = c.paging.mongo || c.paging.api || c.paging.sql;
             if (c.paging.mongo) {
+                proxy = {
+                    type: 'ajax',
+                    url: Config.ServiceUrl + '/data?page=1&size=' + Config.PageSize,
+                    paramsAsJson: true,
+                    actionMethods: {
+                        create: 'POST',
+                        read: 'POST',
+                        update: 'POST',
+                        destroy: 'POST'
+                    },
+                    reader: {
+                        type: 'json',
+                        rootProperty: 'data',
+                        totalProperty: 'total'
+                    }
+                };
+
+                proxy.mode = 'mongo';
+
                 proxy.extraParams = {
                     collection: dataConfig.collection,
                     find: dataConfig.query
                 }
+            }
+            else if (c.paging.api) {
+                proxy = {
+                    type: 'ajax',
+                    url: dataConfig.url,
+                    paramsAsJson: true,
+                    actionMethods: {
+                        create: dataConfig.method,
+                        read: dataConfig.method,
+                        update: dataConfig.method,
+                        destroy: dataConfig.method
+                    },
+                    reader: {
+                        type: 'json',
+                        rootProperty: dataConfig.mapping,
+                        totalProperty: dataConfig.total
+                    }
+                };
+
+                proxy.mode = 'api';
+                proxy.pageParams = dataConfig.pageParams;
+
+                proxy.extraParams = {};
+                proxy.extraParams[dataConfig.pageParams.page] = 1;
+                proxy.extraParams[dataConfig.pageParams.limit] = Config.PageSize;
             }
         }
 
@@ -981,7 +1251,15 @@ export class FormComponent implements OnInit {
                 emptyMsg: this.translate.instant('total_page_empty'),
                 listeners: {
                     beforechange: function (self, page) {
-                        self.ownerCt.getStore().getProxy().setUrl(Config.ServiceUrl + '/data?page=' + page + '&size=' + Config.PageSize);
+                        var proxy = self.ownerCt.getStore().getProxy();
+                        if (proxy.mode == 'mongo') {
+                            proxy.setUrl(Config.ServiceUrl + '/data?page=' + page + '&size=' + Config.PageSize);
+                        }
+                        else if (proxy.mode == 'api') {
+                            var p = {};
+                            p[proxy.pageParams.page] = page;
+                            proxy.setExtraParams(Object.assign(proxy.getExtraParams(), p));
+                        }
                     }
                 }
             });
@@ -1056,35 +1334,45 @@ export class FormComponent implements OnInit {
         };
         if (c.autoHeight == true) {
             var cls = config.cls || '';
-            config.cls = (cls + ' ext-auto-height').trim();            
+            config.cls = (cls + ' ext-auto-height').trim();
         }
         else {
             data.minHeight = (c.type == 'grid') ? 300 : 170;
         }
         if (c.group) {
             data.features = [{
-                ftype:'grouping'
+                ftype: 'grouping'
             }];
         }
         return Ext.create('Ext.grid.Panel', Object.assign(data, config));
     }
 
     createPicBox(imagePath): any {
+        var html = `<img src="${imagePath}" />`;
+        if (!this.viewMode) {
+            html += '<i class="fas fa-times fa-1x"></i>';
+        }
         return Ext.create('Ext.Component', {
             width: 118,
             height: 118,
             cls: 'pic-box d-flex v-center h-center',
-            html: `<img src="${imagePath}" /><i class="fas fa-times fa-1x"></i>`,
+            html: html,
             autoEl: {
                 tag: 'div'
             },
             listeners: {
                 render: function (c) {
-                    c.getEl().dom.querySelector('i').addEventListener('click', function (e) {
-                        var owner = c.ownerLayout.owner;
-                        owner.remove(c);
-                        owner.setRefValue();
-                    });
+                    var removeIcon = c.getEl().dom.querySelector('i');
+                    if (removeIcon) {
+                        removeIcon.addEventListener('click', function (e) {
+                            var owner = c.ownerLayout.owner;
+                            owner.remove(c);
+
+                            if (typeof owner.setRefValue == 'function') {
+                                owner.setRefValue();
+                            }
+                        });
+                    }
                 }
             }
         });
@@ -1108,6 +1396,9 @@ export class FormComponent implements OnInit {
         if (!config.ariaAttributes) {
             config.ariaAttributes = {};
         }
+        if (this.viewMode) {
+            config.readOnly = true;
+        }
 
         switch (c.type) {
             case 'text': {
@@ -1118,7 +1409,20 @@ export class FormComponent implements OnInit {
                 config.format = 'd/m/Y';
                 config.fieldStyle = 'text-align: center;';
                 clearTrigger(config);
+                if (this.viewMode) {
+                    config.fieldCls = 'ext-form-readonly';
+                }
                 return Ext.create('Ext.form.field.Date', config);
+                // break;
+            }
+            case 'time': {
+                config.format = 'H:i';
+                config.fieldStyle = 'text-align: center;';
+                clearTrigger(config);
+                if (this.viewMode) {
+                    config.fieldCls = 'ext-form-readonly';
+                }
+                return Ext.create('Ext.form.field.Time', config);
                 // break;
             }
             case 'combobox': {
@@ -1179,6 +1483,9 @@ export class FormComponent implements OnInit {
                         }
                     }
                 }
+                if (this.viewMode) {
+                    config.fieldCls = 'ext-form-readonly';
+                }
 
                 return Ext.create('Ext.form.field.ComboBox', Object.assign(data, config));
                 // break;
@@ -1190,13 +1497,13 @@ export class FormComponent implements OnInit {
             case 'daterange': {
                 var date1 = {
                     format: 'd/m/Y',
-                    fieldStyle: 'text-align: center;'                    
+                    fieldStyle: 'text-align: center;'
                 };
                 clearTrigger(date1);
 
                 var date2 = {
                     format: 'd/m/Y',
-                    fieldStyle: 'text-align: center;'                    
+                    fieldStyle: 'text-align: center;'
                 };
                 clearTrigger(date2);
 
@@ -1210,7 +1517,7 @@ export class FormComponent implements OnInit {
                     Ext.create('Ext.form.field.Date', date2)
                 ];
                 var cmp = Ext.create('Ext.form.FieldContainer', config);
-                cmp.getValue = function() {
+                cmp.getValue = function () {
                     var values = null;
                     var value1 = this.items.get(0).getValue();
                     var value2 = this.items.get(2).getValue();
@@ -1227,7 +1534,7 @@ export class FormComponent implements OnInit {
             }
             case 'checkboxgroup': {
                 var cmp = Ext.create('Ext.form.FieldContainer', config);
-                cmp.getValue = function() {
+                cmp.getValue = function () {
                     let values: string[] = null;
                     for (var i = 1; i < this.items.length; i++) {
                         if (!values) {
@@ -1241,7 +1548,39 @@ export class FormComponent implements OnInit {
                 // break;
             }
             case 'radiogroup': {
-                return Ext.create('Ext.form.FieldContainer', config);
+                if (config.name) {
+                    for (var i = 0; i < config.items.length; i++) {
+                        config.items[i].name = config.name;
+                    }
+                }
+                var cmp = Ext.create('Ext.form.FieldContainer', config);
+                cmp.getValue = function () {
+                    return null;
+                };
+                cmp.setValue = function (value) {
+                    for (var i = 0; i < this.items.length; i++) {
+                        var item = this.items.get(i);
+                        if (item.inputValue == value) {
+                            item.setValue(true);
+                            break;
+                        }
+                    }
+                };
+                cmp.getValue = function () {
+                    for (var i = 0; i < this.items.length; i++) {
+                        var item = this.items.get(i);
+                        if (item.getValue() == true) {
+                            return item.inputValue;
+                        }
+                    }
+                    return null;
+                };
+                if (this.viewMode) {
+                    for (var i = 0; i < cmp.items.length; i++) {
+                        cmp.items.get(i).setReadOnly(true);
+                    }
+                }
+                return cmp;
                 // break;
             }
             case 'textarea': {
@@ -1278,71 +1617,114 @@ export class FormComponent implements OnInit {
                 if (c.filter) {
                     config.handler = function () {
                         var filterRef = this.ariaAttributes.filter;
-                        var grid = Ext.getCmp(Ext.query('[name="' + filterRef + '"]')[0].id);
-                        var store = grid.getStore();//grid.dockedItems.get(1).getStore();
+                        var grid = this.angular.getCmp(filterRef);
+                        var store = grid.getStore();
 
-                        var find;
-                        if (!grid.data.config.query) {
-                            grid.data.config.query = "{}";
-                        }
-                        eval('find = ' + grid.data.config.query);
+                        if (grid.data.mode == 'mongo') {
+                            var find;
+                            if (!grid.data.config.query) {
+                                grid.data.config.query = "{}";
+                            }
+                            eval('find = ' + grid.data.config.query);
 
-                        var filterParams = find;
-                        for (let filterName of grid.data.config.filter) {
-                            let cmp: any = this.angular.getCmp(filterName);
-                            if (cmp && cmp.name) {
-                                let value: any = cmp.getValue();
-                                if (value) {
-                                    if (cmp.type == 'daterange') {
-                                        if (value[0]) {
-                                            value[0] = Ext.Date.format(value[0], 'Y-m-d');
-                                        }
-                                        if (value[1]) {
-                                            value[1] = Ext.Date.add(value[1], Ext.Date.DAY, 1);
-                                            value[1] = Ext.Date.format(value[1], 'Y-m-d');
-                                        }
-
-                                        var expr = `{ $gte: "ISODate('${value[0]}')", $lte: "ISODate('${value[1]}')" }`;
-                                        if (value[0] && !value[1]) {
-                                            expr = `{ $gte: "ISODate('${value[0]}')" }`;
-                                        }
-                                        else if (value[1] && !value[0]) {
-                                            expr = `{ $gte: "${value[0]}" }`;
-                                        }
-
-                                        var query;
-                                        eval('query = ' + `{ ${cmp.name}: ${expr} } `);
-                                        Object.assign(filterParams, query);
-                                    }
-                                    else { 
-                                        let cmpFind: string = cmp.data.query;
-                                        if (!cmpFind) {
-                                            cmpFind = '{{value}}';
-                                            if (typeof value == 'string') {
-                                                value = '"' + value + '"';
+                            var filterParams = find;
+                            for (let filterName of grid.data.config.filter) {
+                                let cmp: any = this.angular.getCmp(filterName);
+                                if (cmp && cmp.name) {
+                                    let value: any = cmp.getValue();
+                                    if (value) {
+                                        if (cmp.type == 'daterange') {
+                                            if (value[0]) {
+                                                value[0] = Ext.Date.format(value[0], 'Y-m-d');
                                             }
+                                            if (value[1]) {
+                                                value[1] = Ext.Date.add(value[1], Ext.Date.DAY, 1);
+                                                value[1] = Ext.Date.format(value[1], 'Y-m-d');
+                                            }
+
+                                            var expr = `{ $gte: "ISODate('${value[0]}')", $lte: "ISODate('${value[1]}')" }`;
+                                            if (value[0] && !value[1]) {
+                                                expr = `{ $gte: "ISODate('${value[0]}')" }`;
+                                            }
+                                            else if (value[1] && !value[0]) {
+                                                expr = `{ $gte: "${value[0]}" }`;
+                                            }
+
+                                            var query;
+                                            eval('query = ' + `{ ${cmp.name}: ${expr} } `);
+                                            Object.assign(filterParams, query);
                                         }
-                                        cmpFind = cmpFind.replace('{{value}}', value);
-                                        let exp: string = `{ ${cmp.name}: ${cmpFind} }`;
-                                        var query;
-                                        eval('query = ' + exp);
-    
-                                        Object.assign(filterParams, query);
+                                        else {
+                                            let cmpFind: string = cmp.data.query;
+                                            if (!cmpFind) {
+                                                cmpFind = '{{value}}';
+                                                if (typeof value == 'string') {
+                                                    value = '"' + value + '"';
+                                                }
+                                            }
+                                            cmpFind = cmpFind.replace('{{value}}', value);
+                                            let exp: string = `{ ${cmp.name}: ${cmpFind} }`;
+                                            var query;
+                                            eval('query = ' + exp);
+
+                                            Object.assign(filterParams, query);
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if (filterParams) {
-                            store.proxy.extraParams.find = JSON.stringify(filterParams);
-                        }
-                        else {
-                            store.proxy.extraParams.find = JSON.stringify(find);
-                        }
-                        store.proxy.setUrl(Config.ServiceUrl + '/data?page=1&size=' + Config.PageSize);
+                            if (!this.export) {
+                                if (filterParams) {
+                                    store.proxy.extraParams.find = JSON.stringify(filterParams);
+                                }
+                                else {
+                                    store.proxy.extraParams.find = JSON.stringify(find);
+                                }
+                                store.proxy.setUrl(Config.ServiceUrl + '/data?page=1&size=' + Config.PageSize);
 
-                        store.loadPage(1);
-                        store.load();
+                                store.loadPage(1);
+                                store.load();
+                            }
+                            else {
+                                var exportParams = store.proxy.extraParams;
+                                if (filterParams) {
+                                    exportParams.find = JSON.stringify(filterParams);
+                                }
+                                else {
+                                    exportParams.find = JSON.stringify(find);
+                                }
+
+                                let excelForm: any = document.getElementById('excelForm');
+                                excelForm.data.value = JSON.stringify({
+                                    excel: {},
+                                    filter: exportParams
+                                });
+                                excelForm.submit();
+                                excelForm.data.value = null;
+                            }
+                        }
+                        else if (grid.data.mode == 'api') {
+                            let filterParams: any = {};
+                            for (let filterName of grid.data.config.filter) {
+                                let cmp: any = this.angular.getCmp(filterName);
+                                if (cmp && cmp.name) {
+                                    let value: any = cmp.getValue();
+                                    if (value) {
+                                        filterParams[filterName] = value;
+                                    }
+                                }
+                            }
+
+                            var dataConfig = grid.data.config;
+                            store.proxy.pageParams = dataConfig.pageParams;
+
+                            store.proxy.extraParams = {};
+                            store.proxy.extraParams[dataConfig.pageParams.page] = 1;
+                            store.proxy.extraParams[dataConfig.pageParams.limit] = Config.PageSize;
+                            store.proxy.extraParams = Object.assign(store.proxy.extraParams, filterParams);
+
+                            store.load();
+                        }
                     };
                     var renderTo = config.renderTo;
                     config.renderTo = '';
@@ -1362,10 +1744,11 @@ export class FormComponent implements OnInit {
                                 cls: 'ext-grey',
                                 iconCls: 'fas fa-redo-alt fa-1x',
                                 ariaAttributes: config.ariaAttributes,
+                                angular: this,
                                 text: this.translate.instant('clear'),
                                 handler: function () {
                                     var filterRef = this.ariaAttributes.filter;
-                                    var grid = Ext.getCmp(Ext.query('[name="' + filterRef + '"]')[0].id);
+                                    var grid = this.angular.getCmp(filterRef);
                                     for (let filterName of grid.data.config.filter) {
                                         var e = Ext.query('[name="' + filterName + '"]')[0];
                                         let cmp: any = Ext.getCmp(e.dataset.componentid);
@@ -1373,16 +1756,23 @@ export class FormComponent implements OnInit {
                                             cmp.setValue(null);
                                         }
                                     };
-                                    // Ext.query('[filter="' + filterRef + '"]').forEach(e => {
-                                    //     let cmp: any = Ext.getCmp(e.dataset.componentid);
-                                    //     if (cmp && cmp.name) {
-                                    //         cmp.setValue(null);
-                                    //     }
-                                    // });
                                 }
                             })
                         ]
                     });
+
+                    // if (c.export) {
+                    //     var exportButton = Ext.create('Ext.Button', Object.assign(config, {
+                    //         scale: 'medium',
+                    //         cls: 'ext-grey',
+                    //         iconCls: 'fas fa-file-excel fa-1x',
+                    //         text: this.translate.instant('export_excel')
+                    //     }));
+                    //     exportButton.angular = this;
+                    //     exportButton.export = true;
+                    //     cmp.items.add(exportButton);
+                    // }
+
                     return cmp;
                 }
                 else {
@@ -1394,12 +1784,13 @@ export class FormComponent implements OnInit {
                 var fileUpload = Ext.create('Ext.form.field.File', {
                     cls: 'ext-file-upload',
                     buttonConfig: {
-                        text: this.translate.instant('select_photo'),
+                        text: (!c.excel) ? this.translate.instant('select_photo') : this.translate.instant('select_file'),
                         cls: 'ext-grey',
                         scale: 'medium'
                     },
                     msgTarget: 'side',
                     buttonOnly: true,
+                    hidden: this.viewMode,
                     listeners: {
                         render: function (s) {
                             s.fileInputEl.set({ multiple: 'multiple' });
@@ -1408,56 +1799,76 @@ export class FormComponent implements OnInit {
                             var files = s.fileInputEl.dom.files;
                             var data = new FormData();
 
-                            Ext.each(files, function (f) {
-                                data.append('pictures', f);
-                            });
+                            if (s.excel) {
+                                data.append('files', files[0]);
+                                data.append('data', JSON.stringify(s.excel));
 
-                            if (!s.api) {
-                                this.angular.dataService.uploadPicture(data)
+                                this.angular.dataService.uploadExcel(data)
                                     .then(data => {
-                                        for (let i of data) {
-                                            let picBox: any = this.createPicBox(Config.FileUrl + i);
-                                            picBox.value = i;
-                                            s.ownerCt.items.add(picBox);
+                                        s.reset();
+                                        if (!data.error) {
+                                            this.angular.getCmp(s.ownerCt.ref).getStore().loadData(data);
                                         }
-                                        s.ownerCt.updateLayout();
-                                        s.ownerCt.setRefValue();
+                                    })
+                                    .catch(data => {
+                                        s.reset();
                                     });
                             }
                             else {
-                                this.angular.dataService.uploadPictureAPI(s.api, data)
-                                    .then(data => {
-                                        var value = data;
-                                        if (s.api.mapping) {
-                                            let mappings: string[] = s.api.mapping.split('.');
-                                            if (mappings.length > 0) {
-                                                for (var i = 0; i < mappings.length; i++) {
-                                                    value = value[mappings[i]];
+                                Ext.each(files, function (f) {
+                                    data.append('pictures', f);
+                                });
+
+                                if (!s.api) {
+                                    this.angular.dataService.uploadPicture(data)
+                                        .then(data => {
+                                            for (let i of data) {
+                                                let picBox: any = this.createPicBox(Config.FileUrl + i);
+                                                picBox.value = i;
+                                                s.ownerCt.items.add(picBox);
+                                            }
+                                            s.ownerCt.updateLayout();
+                                            s.ownerCt.setRefValue();
+                                        });
+                                }
+                                else {
+                                    this.angular.dataService.uploadPictureAPI(s.api, data)
+                                        .then(data => {
+                                            var value = data;
+                                            if (s.api.mapping) {
+                                                let mappings: string[] = s.api.mapping.split('.');
+                                                if (mappings.length > 0) {
+                                                    for (var i = 0; i < mappings.length; i++) {
+                                                        value = value[mappings[i]];
+                                                    }
                                                 }
                                             }
-                                        }
 
-                                        var imagePath = s.imagePath;
-                                        var dataValue;
-                                        if (s.objectValue) {
-                                            dataValue = Object.assign({}, s.objectValue);
-                                            for (let i in dataValue) {
-                                                dataValue[i] = value[dataValue[i].substring(1)];
-                                                imagePath = imagePath.replace('{{' + i + '}}', dataValue[i]);
+                                            var imagePath = s.imagePath;
+                                            var dataValue;
+                                            if (s.objectValue) {
+                                                dataValue = Object.assign({}, s.objectValue);
+                                                for (let i in dataValue) {
+                                                    dataValue[i] = value[dataValue[i].substring(1)];
+                                                    imagePath = imagePath.replace('{{' + i + '}}', dataValue[i]);
+                                                }
                                             }
-                                        }
 
-                                        let picBox: any = s.angular.createPicBox(imagePath);
-                                        picBox.value = dataValue;
-                                        s.ownerCt.items.add(picBox);
-                                        s.ownerCt.updateLayout();
-                                        s.ownerCt.setRefValue();
-                                    });
+                                            let picBox: any = s.angular.createPicBox(imagePath);
+                                            picBox.value = dataValue;
+                                            s.ownerCt.items.add(picBox);
+                                            s.ownerCt.updateLayout();
+                                            s.ownerCt.setRefValue();
+                                        });
+                                }
                             }
                         }
                     }
                 });
                 fileUpload.angular = this;
+                if (c.excel) {
+                    fileUpload.excel = c.excel;
+                }
                 if (c.api) {
                     fileUpload.api = c.api;
                 }
@@ -1473,40 +1884,56 @@ export class FormComponent implements OnInit {
                 var cmp = Ext.create('Ext.form.FieldContainer', config);
                 cmp.uploadField = fileUpload;
                 cmp.getValue = function () {
-                    let values: string[] = null;
-                    for (var i = 1; i < this.items.length; i++) {
-                        if (!values) {
-                            values = [];
+                    if (this.ref) {
+                        let values: string[] = null;
+                        for (var i = 1; i < this.items.length; i++) {
+                            if (!values) {
+                                values = [];
+                            }
+                            values.push(this.items.get(i).value);
                         }
-                        values.push(this.items.get(i).value);
+                        return values;
                     }
-                    return values;
+                    else {
+                        return this.items.get(1).value;
+                    }
                 };
                 cmp.setValue = function (values) {
-                    var s = this.uploadField;
-                    for (let pic of values) {
-                        // var imagePath = s.imagePath;
-                        // var dataValue;
-                        // if (s.objectValue) {
-                        //     dataValue = Object.assign({}, s.objectValue);
-                        //     for (let d in dataValue) {
-                        //         dataValue[d] = pic[dataValue[d].substring(1)];
-                        //         imagePath = imagePath.replace('{{' + d + '}}', dataValue[d]);
-                        //         console.log(d, dataValue);
-                        //     }
-                        // }
-                        var imagePath = s.imagePath;
-                        var dataValue = Object.assign({}, s.objectValue);
-                        for (let d in dataValue) {
-                            dataValue[d] = pic[d];
-                            imagePath = imagePath.replace('{{' + d + '}}', dataValue[d]);
+                    if (this.ref) {
+                        var s = this.uploadField;
+                        for (let pic of values) {
+                            // var imagePath = s.imagePath;
+                            // var dataValue;
+                            // if (s.objectValue) {
+                            //     dataValue = Object.assign({}, s.objectValue);
+                            //     for (let d in dataValue) {
+                            //         dataValue[d] = pic[dataValue[d].substring(1)];
+                            //         imagePath = imagePath.replace('{{' + d + '}}', dataValue[d]);
+                            //         console.log(d, dataValue);
+                            //     }
+                            // }
+                            var imagePath = s.imagePath;
+                            var dataValue = Object.assign({}, s.objectValue);
+                            for (let d in dataValue) {
+                                dataValue[d] = pic[d];
+                                imagePath = imagePath.replace('{{' + d + '}}', dataValue[d]);
+                            }
+                            var picBox = s.angular.createPicBox(imagePath);
+                            picBox.value = dataValue;
+                            this.items.add(picBox);
                         }
-                        var picBox = s.angular.createPicBox(imagePath);
-                        picBox.value = dataValue;
-                        this.items.add(picBox);
+                        this.updateLayout();
+                        this.setRefValue();
                     }
-                    this.updateLayout();
-                    this.setRefValue();
+                    else {
+                        var s = this.uploadField;
+                        var imagePath = s.imagePath;
+                        imagePath = imagePath + "/" + values;
+                        var picBox = s.angular.createPicBox(imagePath);
+                        picBox.value = values;
+                        this.items.add(picBox);
+                        this.updateLayout();
+                    }
                 }
                 if (c.ref) {
                     cmp.ref = c.ref;

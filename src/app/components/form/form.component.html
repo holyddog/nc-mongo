@@ -1,4 +1,4 @@
-<div *ngIf="formData != null" class="form-inner">
+<div *ngIf="formData != null" class="form-inner" [style.maxWidth]="formWidth">
     <div *ngIf="isDialog" class="tbar d-flex v-center">
         <div class="page-title ml-3 flex">{{title}}</div>
         <div class="nav-icon d-flex v-center h-center" (click)="view.closeDialog()">

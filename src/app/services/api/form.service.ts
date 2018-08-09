@@ -18,7 +18,7 @@ export class FormService {
         return { headers: new HttpHeaders().set('Authorization', `Bearer ${token}`) };
     }
 
-    findById(id: number): Promise<any> {
+    findById(id: string): Promise<any> {
         return this.http.get(Config.ServiceUrl + '/forms/' + id).toPromise();
     }
 

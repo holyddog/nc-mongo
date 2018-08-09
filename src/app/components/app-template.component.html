@@ -39,7 +39,7 @@
             <div [hidden]="!view.hasLayer()" class="nav-icon d-flex v-center h-center" (click)="view.closeForm()">
                 <i class="fas fa-chevron-left fa-1-5x"></i>
             </div>
-            <div class="page-title ml-3 flex">{{view.title}}</div>
+            <div class="page-title ml-3 mr-3 flex">{{view.title}}</div>
             <div id="command_bar" class="mr-3 flex">
             </div>
         </div>
@@ -47,8 +47,11 @@
             <router-outlet (activate)="onActivate($event)"></router-outlet>
         </div>
         <ng-container *ngFor="let d of view.dialogs; index as i">
-            <app-form class="is-dialog d-flex v-center h-center" [formId]="d.id" [queryParams]="d.params" [isDialog]="true" [style.zIndex]="2000 + i"></app-form>
+            <app-form class="is-dialog d-flex v-center h-center" [formId]="d.id" [queryParams]="d.params" [isDialog]="true" [style.zIndex]="2000 + i" [size]="d.size"></app-form>
         </ng-container>
     </div>
 </div>
 <spinner [hidden]="!app.loading"></spinner>
+<form target="_self" id="excelForm" method="POST" [action]="config.ServiceUrl + '/export-excel'">
+    <input type="hidden" name="data">
+</form>
