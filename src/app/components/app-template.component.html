@@ -51,7 +51,6 @@
         </ng-container>
     </div>
 </div>
-<spinner [hidden]="!app.loading"></spinner>
 <form target="_self" id="excelForm" method="POST" [action]="config.ServiceUrl + '/export-excel'">
     <input type="hidden" name="data">
 </form>

@@ -21,7 +21,7 @@ declare var Ext: any;
     templateUrl: 'app.component.html',
 })
 export class AppComponent implements OnInit {
-    constructor(private authen: AuthenService, private translate: TranslateService) {
+    constructor(private authen: AuthenService, private translate: TranslateService, public app: AppService) {
     }
 
     ngOnInit(): void {

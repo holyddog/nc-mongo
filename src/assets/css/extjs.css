@@ -35,12 +35,27 @@ legend.x-fieldset-header-default {
 .x-grid-item,
 .x-toolbar-text-default,
 .x-form-display-field-default,
-.x-boundlist-item {
+.x-boundlist-item,
+.x-grid-rowbody {
     font: 300 13px 'Kanit', sans-serif;
 }
 
 .x-btn-inner-default-large {
     font: 300 14px 'Kanit', sans-serif;
+}
+
+.x-grid .x-panel-header-title-default {
+    font: 400 13px 'Kanit', sans-serif !important;
+    color: #555 !important;
+}
+
+.x-grid .x-panel-header-default {
+    border: solid 1px #cfcfcf !important;
+    border-bottom-style: none !important;
+}
+
+.x-grid-rowbody {
+    padding: 0;
 }
 
 .x-btn-inner-default-toolbar-medium {
@@ -58,6 +73,16 @@ legend.x-fieldset-header-default {
 
 .x-tip {
     display: none !important;
+}
+
+.x-column-header-sort-ASC,
+.x-column-header-sort-DESC {
+    background-color: transparent;
+}
+
+.x-column-header-sort-DESC .x-column-header-text-inner,
+.x-column-header-sort-ASC .x-column-header-text-inner {
+    background-image: none;
 }
 
 .x-tip-body-form-invalid {

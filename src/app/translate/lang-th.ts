@@ -5,6 +5,8 @@ export const LANG_TH_TRANS = {
     'search': 'ค้นหา',
     'save': 'บันทึก',
     'select': 'เลือก',
+    'approve': 'อนุมัติ',
+    'unapprove': 'ยกเลิกอนุมัติ',
     'edit': 'แก้ไข',
     'delete': 'ลบ',
     'clear': 'เคลียข้อมูล',

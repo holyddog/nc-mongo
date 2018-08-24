@@ -5,6 +5,7 @@ import { TranslateService } from '../../services/shared/translate.service';
 import { StorageService } from '../../services/shared/storage.service';
 
 import { AuthenService } from '../../services/api/authen.service';
+import { ViewService } from '../../services/shared/view.service';
 
 declare var Ext: any;
 
@@ -17,14 +18,11 @@ declare var Ext: any;
 export class LoginComponent implements OnInit {
     loading: boolean = false;
 
-    constructor(private router: Router, private route: ActivatedRoute, private translate: TranslateService, private storage: StorageService, private authenService: AuthenService) { }
+    constructor(private router: Router, private view: ViewService, private route: ActivatedRoute, private translate: TranslateService, private storage: StorageService, private authenService: AuthenService) { }
 
-    ngOnInit() {
-        Ext.create('Ext.button.Button', {
-            text: 'Log In',
-            scale: 'medium',
-            handler: this.logIn.bind(this),
-            renderTo: Ext.get('button_1')
+    ngOnInit() {        
+        this.view.setForm({
+            id: 'login'
         });
     }
 

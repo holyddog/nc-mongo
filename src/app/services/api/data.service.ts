@@ -66,6 +66,16 @@ export class DataService {
         }
     }
 
+    insertData(config: any): Promise<any> {
+        config.method = "POST";
+        return this.saveData(config);
+    }
+
+    updateData(config: any): Promise<any> {
+        config.method = "PUT";
+        return this.saveData(config);
+    }
+
     saveData(config: any): Promise<any> {
         let headers = new HttpHeaders();
         if (config.headers) {
@@ -92,10 +102,27 @@ export class DataService {
         else if (config.type == 'mongo') {
             let data: any = {
                 collection: config.collection,
-                pk: config.pk,
                 data: config.params
             };
-            return this.http.post(Config.ServiceUrl + '/forms', data).toPromise();
+
+            if (config.pk) {                
+                data.pk = config.pk;
+            }
+
+            if (config.filter) {                
+                data.filter = config.filter;
+            }
+
+            if (config.multi) {
+                data.multi = config.multi;
+            }
+
+            if (config.method.toUpperCase() == 'PUT') {
+                return this.http.put(Config.ServiceUrl + '/forms', data).toPromise();
+            }
+            else {
+                return this.http.post(Config.ServiceUrl + '/forms', data).toPromise();
+            }
         }
         else {
             return Promise.resolve();

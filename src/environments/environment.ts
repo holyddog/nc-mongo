@@ -9,6 +9,7 @@ export const Config = {
     PageSize: 10,
 
     ServiceUrl: 'http://localhost:3000',
+    AuthenUrl: 'http://27.254.138.120:3201/dev/ecv/POS-OnlineService',
     FileUrl: 'http://localhost:3000/files',
     ImageUrl: 'http://27.254.138.120:3203/files',
 

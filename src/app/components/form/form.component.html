@@ -7,7 +7,7 @@
     </div>
     <div class="form-inner-body" [style.maxHeight]="bodyHeight + 'px'">
         <ng-container *ngFor="let i of formData">
-            <div #form *ngIf="i.container" class="paper">
+            <div #form *ngIf="i.container" [class.paper]="i.paper != false">
                 <div class="container" *ngIf="i.container && i.container.length > 0">
                     <ng-container *ngFor="let con of i.container">
                         <ng-container *ngIf="con.rows && con.rows.length > 0">

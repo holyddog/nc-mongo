@@ -9,6 +9,7 @@ import { TranslateService } from '../../services/shared/translate.service';
 import { AuthenService } from '../../services/api/authen.service';
 import { AppService } from '../../services/shared/app.service';
 import { ViewService } from '../../services/shared/view.service';
+import { StorageService } from '../../services/shared/storage.service';
 
 declare var Ext: any;
 
@@ -46,7 +47,7 @@ export class FormComponent implements OnInit {
     onBeforeSave: any;
     onAfterSave: any;
 
-    constructor(private router: Router, private route: ActivatedRoute, private authen: AuthenService, private app: AppService, private translate: TranslateService, private view: ViewService, private formService: FormService, private dataService: DataService) {
+    constructor(private router: Router, private route: ActivatedRoute, private storage: StorageService, private authen: AuthenService, private app: AppService, private translate: TranslateService, private view: ViewService, private formService: FormService, private dataService: DataService) {
         router.events.subscribe((val) => {
             if (val instanceof NavigationEnd) {
                 // alert('form');
@@ -153,7 +154,7 @@ export class FormComponent implements OnInit {
                                     if (ds[dsName]) {
                                         eval('value = ds.' + c.mapping + '');
 
-                                        if (value) {
+                                        if (value || value === 0 || value === false) {
                                             if (c.type == 'date' || c.type == 'time') {
                                                 c.setValue(new Date(value));
                                             }
@@ -162,6 +163,11 @@ export class FormComponent implements OnInit {
                                             }
                                             else {
                                                 c.setValue(value);
+                                            }
+                                        }
+                                        else {
+                                            if (c.type == 'grid') {
+                                                c.getStore().fireEvent('load');
                                             }
                                         }
                                     }
@@ -327,6 +333,10 @@ export class FormComponent implements OnInit {
                                     });
                                     button.action = b.action;
                                     button.angular = this;
+
+                                    button.name = b.name;
+                                    this.view.addComponent(this.formId, button);
+
                                     tbar.push(button);
                                 }
 
@@ -480,8 +490,8 @@ export class FormComponent implements OnInit {
         });
     }
 
-    getCmp(name: string): any {
-        for (let c of this.view.getComponentItems(this.formId)) {
+    getCmp(name: string, formId: string = this.formId): any {
+        for (let c of this.view.getComponentItems(formId)) {
             if (c.name == name) {
                 return c;
             }
@@ -871,36 +881,51 @@ export class FormComponent implements OnInit {
                 }
                 else {
                     var column;
-                    if (col.type == 'date') {
-                        col.config.format = 'd/m/Y H:i';
-                        column = Ext.create('Ext.grid.column.Date', col.config);
+                    if (col.config.renderer) {
+                        eval('col.config.renderer = ' + col.config.renderer);
                     }
-                    else {
-                        if (col.config.renderer) {
-                            eval('col.config.renderer = ' + col.config.renderer);
-                        }
-                        else if (col.mapping || col.action) {
-                            col.config.renderer = function (value, metaData, record, rowIndex, colIndex) {
-                                if (value) {
-                                    var column = this.getColumns()[colIndex];
-                                    if (column.mapping) {
-                                        eval('value = record.data.' + column.mapping);
-                                        // var mappings = column.mapping.split('.');
-                                        // if (mappings.length > 1) {
-                                        //     for (var i = 1; i < mappings.length; i++) {
-                                        //         value = value[mappings[i]];
-                                        //     }
-                                        // }
-                                    }
-                                    if (column.action) {
-                                        if (column.action.type == 'open' || column.action.type == 'link') {
-                                            return `<a style="text-decoration: underline" href="javascript:void(0)">${value}</a>`;
-                                        }
+                    else if (col.mapping || col.action) {
+                        col.config.renderer = function (value, metaData, record, rowIndex, colIndex) {
+                            if (value || value === 0 || value === false) {
+                                var column = this.getColumns()[colIndex];
+                                if (column.mapping) {
+                                    eval('value = record.data.' + column.mapping);
+                                    // var mappings = column.mapping.split('.');
+                                    // if (mappings.length > 1) {
+                                    //     for (var i = 1; i < mappings.length; i++) {
+                                    //         value = value[mappings[i]];
+                                    //     }
+                                    // }
+                                }
+                                if (column.action) {
+                                    if (column.action.type == 'open' || column.action.type == 'link') {
+                                        return `<a style="text-decoration: underline" href="javascript:void(0)">${value}</a>`;
                                     }
                                 }
-                                return value;
                             }
+                            return value;
                         }
+                    }
+
+                    if (col.type == 'date') {
+                        col.config.format = 'd/m/Y H:i';
+                        if (!col.config.width) {
+                            col.config.width = 150;
+                        }
+                        column = Ext.create('Ext.grid.column.Date', col.config);
+                    }
+                    else if (col.type == 'checkbox') {
+                        col.config.xtype = 'checkcolumn';
+                        col.config.align = 'center';
+                        col.config.width = 60;
+                        col.config.listeners = {
+                            beforecheckchange: function () {
+                                return false;
+                            }
+                        };
+                        column = Ext.create('Ext.grid.column.Check', col.config);
+                    }
+                    else {
                         column = Ext.create('Ext.grid.column.Column', col.config);
                     }
 
@@ -927,7 +952,7 @@ export class FormComponent implements OnInit {
                             for (let i in column.action.params) {
                                 var value = column.action.params[i];
                                 if (typeof value == 'string' && value.startsWith('@')) {
-                                    value = record.get(value.substring(1));
+                                    eval('value = record.data.' + value.substring(1));
                                 }
                                 p[i] = value;
                             }
@@ -958,17 +983,22 @@ export class FormComponent implements OnInit {
                 let tbarButtons: any[] = [];
                 var viewCount = 0;
                 for (let b of c.tbar) {
-                    if (this.viewMode) {
+                    var isView = this.viewMode;
+                    if (isView) {
                         viewCount++;
                     }
-                    tbarButtons.push({
+                    
+                    let btnConfig: any = {
                         scale: 'medium',
-                        cls: 'ext-grey',
+                        cls: (b.cls)? b.cls: 'ext-grey',
                         text: b.text,
                         angular: this,
                         action: b.action,
-                        hidden: this.viewMode,
-                        handler: function () {
+                        hidden: isView
+                    };
+
+                    if (b.action) {
+                        btnConfig.handler = function() {
                             var p = {};
                             if (this.action.params) {
                                 for (let i in this.action.params) {
@@ -990,16 +1020,20 @@ export class FormComponent implements OnInit {
                                     }
                                 }
                             }
-
+    
                             if (c.name) {
                                 p['ref'] = c.name;
                             }
-
+    
                             if (this.action.type == 'open') {
                                 this.angular.open(this.action, p);
                             }
-                        }
-                    });
+                        };                     
+                    }
+                    var cmp = Ext.create('Ext.Button', btnConfig);
+                    cmp.name = b.name;
+                    tbarButtons.push(cmp);
+                    this.view.addComponent(this.formId, cmp);   
                 }
 
                 var hidden = false;
@@ -1021,6 +1055,51 @@ export class FormComponent implements OnInit {
                 };
                 columns[0].cls = (columns[0].cls + " ext-col-bl-line").trim();
             }
+
+            if (c.features) {
+                config.features = [];
+                for (let f of c.features) {
+                    let feature: any = null;
+                    if (f.type == 'rowbody') {
+                        feature = {
+                            ftype: 'rowbody',
+                            tpl: f.tpl,
+                            getAdditionalData: function (data, idx, record, orig) {
+                                var html = this.tpl;
+                                if (html instanceof Array) {
+                                    html = html.join("");
+                                }
+                                var tpl = new Ext.XTemplate(html);            
+                                return {
+                                    rowBody: tpl.apply(record.data)
+                                };
+                            }
+                        };
+                    }
+
+                    if (feature) {
+                        config.features.push(feature);
+                    }
+                }
+            }
+
+            // config.features = [{
+            //     ftype: 'rowbody',
+            //     tpl
+            //     rowBody: 'xxx-rowBody',
+            //     rowBodyCls: 'xxx-rowBodyCls',
+            //     getAdditionalData: function (data, idx, record, orig) {
+            //         console.log(this);
+
+            //         var tpl = new Ext.XTemplate(this.tpl);
+            //         return tpl.apply(record.data);
+
+            //         return {
+            //             rowBody: '<div style="padding: 1em">' + record.get("outlet_name") + '</div>',
+            //             rowBodyCls: "my-body-class"
+            //         };
+            //     }
+            // }]
         }
         else if (c.type == 'list') {
             config.cls = 'ext-list';
@@ -1163,6 +1242,19 @@ export class FormComponent implements OnInit {
         }
         if (c.group) {
             storeConfig.groupField = c.group;
+        }        
+        if (c.sort) {
+            storeConfig.sorters = [];
+            for (let s in c.sort) {
+                let dir = "ASC";
+                if (c.sort[s] == -1) {
+                    dir = "DESC";
+                }
+                storeConfig.sorters.push({
+                    property: s,
+                    direction: dir
+                });
+            }
         }
 
         let store, proxy;
@@ -1192,6 +1284,9 @@ export class FormComponent implements OnInit {
                 proxy.extraParams = {
                     collection: dataConfig.collection,
                     find: dataConfig.query
+                }
+                if (dataConfig.sort) {
+                    proxy.extraParams.sort = JSON.stringify(dataConfig.sort);
                 }
             }
             else if (c.paging.api) {
@@ -1397,7 +1492,17 @@ export class FormComponent implements OnInit {
             config.ariaAttributes = {};
         }
         if (this.viewMode) {
-            config.readOnly = true;
+            let readOnly: boolean = true;
+            if (c.editable) {
+                for (let v in c.editable) {
+                    if (c.editable[v] == 1) {
+                        if (v == 'view') {
+                            readOnly = false;
+                        }
+                    }
+                }
+            }
+            config.readOnly = readOnly;
         }
 
         switch (c.type) {
@@ -1405,8 +1510,15 @@ export class FormComponent implements OnInit {
                 return Ext.create('Ext.form.field.Text', config);
                 // break;
             }
+            case 'password': {
+                config.inputType = 'password';
+                return Ext.create('Ext.form.field.Text', config);
+                // break;
+            }
             case 'date': {
-                config.format = 'd/m/Y';
+                if (!config.format) {
+                    config.format = 'd/m/Y';
+                }
                 config.fieldStyle = 'text-align: center;';
                 clearTrigger(config);
                 if (this.viewMode) {
@@ -1483,7 +1595,7 @@ export class FormComponent implements OnInit {
                         }
                     }
                 }
-                if (this.viewMode) {
+                if (this.viewMode && config.readOnly) {
                     config.fieldCls = 'ext-form-readonly';
                 }
 
@@ -1612,7 +1724,7 @@ export class FormComponent implements OnInit {
             }
             case 'button': {
                 config.scale = 'medium';
-                config.cls = 'ext-primary';
+                config.cls = 'ext-secondary';
 
                 if (c.filter) {
                     config.handler = function () {
@@ -1632,7 +1744,8 @@ export class FormComponent implements OnInit {
                                 let cmp: any = this.angular.getCmp(filterName);
                                 if (cmp && cmp.name) {
                                     let value: any = cmp.getValue();
-                                    if (value) {
+                                    if (value || value === 0 || value === false) {
+                                        let fieldName: string = cmp.mapping || cmp.name;
                                         if (cmp.type == 'daterange') {
                                             if (value[0]) {
                                                 value[0] = Ext.Date.format(value[0], 'Y-m-d');
@@ -1651,7 +1764,7 @@ export class FormComponent implements OnInit {
                                             }
 
                                             var query;
-                                            eval('query = ' + `{ ${cmp.name}: ${expr} } `);
+                                            eval('query = ' + `{ '${fieldName}': ${expr} } `);
                                             Object.assign(filterParams, query);
                                         }
                                         else {
@@ -1663,7 +1776,7 @@ export class FormComponent implements OnInit {
                                                 }
                                             }
                                             cmpFind = cmpFind.replace('{{value}}', value);
-                                            let exp: string = `{ ${cmp.name}: ${cmpFind} }`;
+                                            let exp: string = `{ '${fieldName}': ${cmpFind} }`;
                                             var query;
                                             eval('query = ' + exp);
 
@@ -1709,7 +1822,7 @@ export class FormComponent implements OnInit {
                                 let cmp: any = this.angular.getCmp(filterName);
                                 if (cmp && cmp.name) {
                                     let value: any = cmp.getValue();
-                                    if (value) {
+                                    if (value || value === 0 || value === false) {
                                         filterParams[filterName] = value;
                                     }
                                 }
@@ -1776,6 +1889,10 @@ export class FormComponent implements OnInit {
                     return cmp;
                 }
                 else {
+                    config.style = { top: '-3px' };
+                    if (config.fieldLabel === "") {
+                        config.style.marginLeft = '145px';
+                    }
                     return Ext.create('Ext.Button', config);
                 }
                 // break;

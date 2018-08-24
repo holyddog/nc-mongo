@@ -28,6 +28,14 @@ export class AuthenService {
         this.user = this.storage.get('user');
     }
 
+    logIn(username: string, password: string): Promise<any> {
+        return this.http.post(Config.AuthenUrl + '/hq/nc/login?langid=2', {            
+            user_name: username,
+            password: password,
+            wsp_id: 0
+        }).toPromise();
+    }
+
     logOut(): void {
         this.user = null;
         this.storage.remove('user');
