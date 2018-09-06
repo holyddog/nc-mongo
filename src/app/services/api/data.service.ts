@@ -104,6 +104,9 @@ export class DataService {
                 collection: config.collection,
                 data: config.params
             };
+            if (!config.method) {
+                config.method = 'POST';
+            }
 
             if (config.pk) {                
                 data.pk = config.pk;
