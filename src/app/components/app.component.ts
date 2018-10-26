@@ -38,12 +38,13 @@ export class AppComponent implements OnInit {
 export class AppTemplateComponent implements OnInit {
     menus: any[] = [];
     config: any = Config;
+    menuLoading: boolean = false;
 
-    constructor(private location: Location, private router: Router, private title: Title, public app: AppService, private menu: MenuService, private view: ViewService, public authen: AuthenService, private formService: FormService) {
+    constructor(private location: Location, private router: Router, private title: Title, public app: AppService, public menu: MenuService, public view: ViewService, public authen: AuthenService, private formService: FormService) {
         router.events.subscribe((val) => {
             if (val instanceof NavigationEnd) {                
                 // this.view.clearComponent();
-                this.view.title = Config.AppName;
+                this.view.title = this.authen.ws.data.app_name;
                 this.view.clearDialogs();
                 
                 // this.menu.hideMenu(this.location.path());
@@ -52,21 +53,18 @@ export class AppTemplateComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        this.title.setTitle(Config.AppName);
-        this.view.title = Config.AppName;
+        this.title.setTitle(this.authen.ws.data.app_name);
+        this.view.title = this.authen.ws.data.app_name;
 
         let path: string = this.location.path();
         this.menu.name = path.substring(path.lastIndexOf('/') + 1);
 
-        this.app.showLoading();
+        this.menuLoading = true;
         this.formService.findMenu()
             .then(data => {
-                this.app.hideLoading();
+                this.menuLoading = false;
                 this.menus = data;
             });
-    }
-
-    onActivate(): void {
     }
 
     navigate(menu: any): void {

@@ -16,7 +16,7 @@ export const LANG_TH_TRANS = {
     'alert': 'แจ้งเตือน',
     'select_photo': 'เลือกรูป',
     'select_file': 'เลือกไฟล์',
-    'export_excel': 'ดึงข้อมูลเป็น Excel',
+    'export_excel': 'ดึงข้อมูล Excel',
     'save_success': 'การบันทึกข้อมูลเสร็จสมบูรณ์',
 
     'dashboard': 'ภาพรวมการใช้งาน',

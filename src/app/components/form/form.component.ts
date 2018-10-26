@@ -40,17 +40,30 @@ export class FormComponent implements OnInit {
     dsData: any = {};
     bodyHeight: number;
     formWidth: string = "100%";
-    center: any = ["@OUTLET_ID", "@OUTLET_NAME", "@USER_ID", "@USER_NAME", "@DATE"];
+
+    reserveKeys: string[] = ["@DATE"];
+    formModes: string[] = ["add", "edit", "view"];
 
     hasScript: boolean = false;
     onLoad: any;
     onBeforeSave: any;
     onAfterSave: any;
+    navigationSubscription;
 
     constructor(private router: Router, private route: ActivatedRoute, private storage: StorageService, private authen: AuthenService, private app: AppService, private translate: TranslateService, private view: ViewService, private formService: FormService, private dataService: DataService) {
-        router.events.subscribe((val) => {
-            if (val instanceof NavigationEnd) {
-                // alert('form');
+        // router.events.subscribe((val) => {
+        //     if (val instanceof NavigationEnd) {
+        //         alert('form');
+        //     }
+        // });
+
+        this.navigationSubscription = this.router.events.subscribe((e: any) => {
+            // If it is a NavigationEnd event re-initalise the component
+            if (e instanceof NavigationEnd) {
+                this.route.queryParams.subscribe(params => {
+                    // this.queryParams = params;
+                    // this.loadForm();
+                });
             }
         });
     }
@@ -64,11 +77,22 @@ export class FormComponent implements OnInit {
         }
         this.bodyHeight = window.innerHeight - 128 - 30;
 
+        // setTimeout(() => {
+        //     //item_id=327
+        //     this.router.navigate(["/form/sample_form"], {
+        //         queryParams: { item_id: 327 }
+        //     });
+        // }, 3000);
+
         // this.dataService.loadScript(this.formId).then(data => {
         //     var angular = this;
         //     eval(data);
         // });
 
+        this.loadForm();
+    }
+
+    loadForm(): void {
         if (this.formId) {
             this.view.loading = true;
             this.formService.findById(this.formId)
@@ -128,6 +152,9 @@ export class FormComponent implements OnInit {
                                     this.title = data.title['edit'];
                                 }
                             }
+                            else {
+                                this.title = data.title['add'];
+                            }
                         }
 
                         if (!this.isDialog) {
@@ -152,7 +179,12 @@ export class FormComponent implements OnInit {
                                     var value;
                                     var dsName = c.mapping.substring(0, c.mapping.indexOf('.'));
                                     if (ds[dsName]) {
-                                        eval('value = ds.' + c.mapping + '');
+                                        try {
+                                            eval('value = ds.' + c.mapping + '');
+                                        }
+                                        catch (e) {
+                                            value = null;
+                                        }
 
                                         if (value || value === 0 || value === false) {
                                             if (c.type == 'date' || c.type == 'time') {
@@ -171,6 +203,11 @@ export class FormComponent implements OnInit {
                                             }
                                         }
                                     }
+                                }
+
+                                if (typeof c.getValue == 'function' && typeof c.getValue() == 'string' && c.getValue().startsWith('@')) {
+                                    var newValue = this.fetchParamsValue(c.getValue(), null);
+                                    c.setValue(newValue);
                                 }
                             }
 
@@ -204,13 +241,14 @@ export class FormComponent implements OnInit {
 
                                     let hidden: boolean = false;
                                     if (b.visible) {
-                                        for (let v in b.visible) {
-                                            if (b.visible[v] == 0) {
-                                                if (v == 'view' && this.viewMode) {
-                                                    hidden = true;
-                                                }
-                                            }
-                                        }
+                                        hidden = !this.getVisible(b.visible);
+                                        // for (let v in b.visible) {
+                                        //     if (b.visible[v] == 0) {
+                                        //         if (v == 'view' && this.viewMode) {
+                                        //             hidden = true;
+                                        //         }
+                                        //     }
+                                        // }
                                     }
 
                                     var button = Ext.create('Ext.Button', {
@@ -221,7 +259,11 @@ export class FormComponent implements OnInit {
                                         hidden: hidden,
                                         handler: function () {
                                             if (this.action.type == 'link') {
-                                                this.angular.router.navigate([this.action.path]);
+                                                let path: string = this.action.path;
+                                                if (!path) {
+                                                    path = '/form/' + this.action.id;
+                                                }
+                                                this.angular.router.navigate([path]);
                                             }
                                             else if (this.action.type == 'open') {
                                                 this.angular.open(this.action);
@@ -231,15 +273,28 @@ export class FormComponent implements OnInit {
                                                     let itemsData: any[] = [];
                                                     var selectedItems = this.angular.getCmp(this.action.src).getSelectionModel().getSelected().items;
                                                     for (let it of selectedItems) {
-                                                        itemsData.push(it.data);
+                                                        let row: any = {};
+                                                        for (let m in this.action.mapping) {
+                                                            var key = this.action.mapping[m].substring(1);
+                                                            row[m] = it.get(key);
+                                                        }
+                                                        itemsData.push(row);
                                                     }
-                                                    console.log(itemsData);
 
-                                                    let appForms: any[] = this.angular.parent.appForms;
-                                                    let parentForm: any = appForms[this.angular.view.forms.length - ((this.angular.isDialog)? 1: 2)];
-                                                    console.log(parentForm.formId);
+                                                    this.angular.getCmp(this.action.dest, this.angular.queryParams.ref).getStore().loadData(itemsData);
 
-                                                    console.log(this.angular.queryParams['ref']);
+                                                    if (this.angular.isDialog) {
+                                                        this.angular.view.closeDialog();
+                                                    }
+                                                    else {
+                                                        this.angular.view.closeForm();
+                                                    }
+
+                                                    // let appForms: any[] = this.angular.parent.appForms;
+                                                    // let parentForm: any = appForms[this.angular.view.forms.length - ((this.angular.isDialog)? 1: 2)];
+                                                    // console.log(parentForm.formId);
+
+                                                    // console.log(this.angular.queryParams['ref']);
                                                 }
                                             }
                                             else if (this.action.type == 'save') {
@@ -249,16 +304,31 @@ export class FormComponent implements OnInit {
                                                     this.setDisabled(false);
 
                                                     this.angular.view.alert(this.angular.translate.instant('save_success')).then(() => {
-                                                        if (save.onFinish) {
-                                                            if (save.onFinish == 'back') {
-                                                                this.angular.view.closeForm();
-                                                            }
-                                                        }
+                                                        // if (this.angular.isDialog) {
+                                                        //     this.angular.view.closeDialog();
+                                                        // }
+                                                        // else {                                                            
+                                                        //     this.angular.view.closeForm();
+                                                        // }
+
+                                                        // if (save.onFinish) {
+                                                        //     if (save.onFinish == 'back') {
+                                                        //         this.angular.view.closeForm();
+                                                        //     }
+                                                        // }
+                                                        // else {
+                                                        //     if (!this.hasKey) {
+                                                        //     }
+                                                        // }
                                                     });
                                                 };
 
                                                 let saveData = (index: number, endPoint: any): void => {
                                                     if (index < endPoint.length) {
+                                                        if (endPoint[index].type == 'mongo' && this.angular.hasKey) {
+                                                            endPoint[index].method = 'PUT';
+                                                        }
+
                                                         this.angular.dataService.saveData(endPoint[index])
                                                             .then(resultData => {
                                                                 this.angular.resultData.push(resultData);
@@ -390,7 +460,27 @@ export class FormComponent implements OnInit {
         }
     }
 
+    ngOnDestroy() {
+        // avoid memory leaks here by cleaning up after ourselves. If we  
+        // don't then we will continue to run our initialiseInvites()   
+        // method on every navigationEnd event.
+        if (this.navigationSubscription) {
+            this.navigationSubscription.unsubscribe();
+        }
+    }
+
+    getFormMode(): string {
+        if (this.viewMode) {
+            return "view";
+        }
+        else {
+            return this.hasKey ? "edit" : "add"
+        }
+    }
+
     open(action: any, params: any = {}): void {
+        params.ref = this.formId;
+
         if (!action.dialog) {
             this.view.addForm({
                 id: action.id,
@@ -407,17 +497,8 @@ export class FormComponent implements OnInit {
     }
 
     getCenterParam(name: string): any {
-        if (name == '@OUTLET_ID') {
+        if (name == '@USER') {
             return this.authen.user.outlet_id;
-        }
-        else if (name == '@OUTLET_NAME') {
-            return this.authen.user.outlet_name;
-        }
-        else if (name == '@USER_ID') {
-            return this.authen.user.id;
-        }
-        else if (name == '@USER_NAME') {
-            return this.authen.user.name;
         }
         return name;
     }
@@ -430,37 +511,54 @@ export class FormComponent implements OnInit {
                         var ds = this.ds[index];
                         var config = ds.api || ds.mongo || ds.sql;
 
-                        var params = {};
                         var valid = true;
-                        if (config.params) {
-                            for (var p in config.params) {
-                                var pValue = config.params[p];
-                                if (pValue.toString().startsWith('@params')) {
-                                    var name = pValue.replace('@params.', '');
-                                    params[p] = this.queryParams[name];
-                                }
-                                else if (this.center.indexOf(pValue) > -1) {
-                                    params[p] = this.getCenterParam(pValue);
-                                }
-                                else if (pValue.toString().startsWith('@')) {
-                                    let value: any = "";
-                                    var o = Ext.getCmp(Ext.query('[name="' + pValue.substring(1) + '"]')[0].dataset.componentid);
-                                    if (o && (o.getValue() != undefined || o.getValue() != null)) {
-                                        value = o.getValue();
-                                    }
-                                    params[p] = value;
-                                }
-                                else {
-                                    params[p] = pValue;
-                                }
 
-                                if (valid) {
-                                    if (!params[p] || (params[p] && params[p] == "") || params[p].toString().startsWith('@')) {
-                                        valid = false;
-                                    }
+                        if (config.aggregate) {
+                            valid = this.fetchAggregate(config.aggregate);
+                        }
+
+                        let params: any = this.fetchParams(config.params || config.find, (ds.mongo) ? 'mongo' : null);
+                        for (let p in params) {
+                            if (valid) {
+                                if (!params[p] || (params[p] && params[p] == "") || params[p].toString().startsWith('@')) {
+                                    valid = false;
                                 }
                             }
                         }
+
+                        if (Ext.Object.isEmpty(params)) {
+                            valid = false;
+                        }
+
+                        // if (config.params) {
+                        //     for (var p in config.params) {
+                        //         var pValue = config.params[p];
+                        //         if (pValue.toString().startsWith('@params')) {
+                        //             var name = pValue.replace('@params.', '');
+                        //             params[p] = this.queryParams[name];
+                        //         }
+                        //         else if (this.center.indexOf(pValue) > -1) {
+                        //             params[p] = this.getCenterParam(pValue);
+                        //         }
+                        //         else if (pValue.toString().startsWith('@')) {
+                        //             let value: any = "";
+                        //             var o = Ext.getCmp(Ext.query('[name="' + pValue.substring(1) + '"]')[0].dataset.componentid);
+                        //             if (o && (o.getValue() != undefined || o.getValue() != null)) {
+                        //                 value = o.getValue();
+                        //             }
+                        //             params[p] = value;
+                        //         }
+                        //         else {
+                        //             params[p] = pValue;
+                        //         }
+
+                        //         if (valid) {
+                        //             if (!params[p] || (params[p] && params[p] == "") || params[p].toString().startsWith('@')) {
+                        //                 valid = false;
+                        //             }
+                        //         }
+                        //     }
+                        // }
 
                         if (valid) {
                             this.getData(config, params)
@@ -499,6 +597,265 @@ export class FormComponent implements OnInit {
         return null;
     }
 
+    convertValue(value: any): any {
+        if (!isNaN(value)) {
+            return parseFloat(value);
+        }
+        return value;
+    }
+
+    fetchParamsValue(pValue: any, mode: string, filter: boolean = false) {
+        var paramsValue = null;
+        if (typeof pValue == 'object' && pValue.name) {
+            var gridData = [];
+            var o = this.getCmp(pValue.name.substring(1));
+            if (o) {
+                var store = o.getStore();
+                for (var j = 0; j < store.getCount(); j++) {
+                    var row = store.getAt(j);
+                    var dataRow = {};
+                    for (let i in pValue.data) {
+                        var key = pValue.data[i].substring(1);
+                        dataRow[i] = row.get(key);
+                    }
+                    gridData.push(dataRow);
+                }
+
+                if (gridData.length > 0) {
+                    paramsValue = gridData;
+                }
+            }
+        }
+        else if (pValue.toString().startsWith('@params')) {
+            var name = pValue.replace('@params.', '');
+            paramsValue = isNaN(this.queryParams[name]) ? this.queryParams[name] : parseInt(this.queryParams[name]);
+        }
+        else if (pValue.toString().startsWith('@ds')) {
+            var name = pValue.replace('@ds.', '');
+            eval('paramsValue = this.dsData.' + name);
+        }
+        else if (pValue.toString().startsWith('@center.user')) {//(this.center.indexOf(pValue) > -1) {
+            var key = pValue.toString().replace('@center.user.', '');
+            paramsValue = this.authen.user[key];
+        }
+        else if (pValue.toString().startsWith('@center.ws')) {
+            var key = pValue.toString().replace('@center.ws.', '');
+            if (this.authen.ws[key] == 0 && filter) {
+                paramsValue = { "$exists": true };
+            }
+            else {
+                paramsValue = this.authen.ws[key];
+            }
+        }
+        else if (pValue.toString().startsWith('@')) {
+            if (this.reserveKeys.indexOf(pValue.toString()) > -1) {
+                return pValue;
+            }
+
+            var name = pValue.substring(1);
+            var isRaw = false;
+            if (name.split('.')[0] == 'raw') {
+                name = name.split('.')[1];
+                isRaw = true;
+            }
+            var o = this.getCmp(name);
+            if (o) {
+                if (o.type == 'grid') {
+                    if (o.saveFields) {
+                        var gridData = [];
+                        var store = o.getStore();
+                        for (var j = 0; j < store.getCount(); j++) {
+                            var row = store.getAt(j);
+                            var dataRow = {};
+                            for (let i in o.saveFields) {
+                                var key = o.saveFields[i].substring(1);
+                                dataRow[i] = row.get(key);
+                            }
+                            gridData.push(dataRow);
+                        }
+
+                        if (gridData.length > 0) {
+                            paramsValue = gridData;
+                        }
+                        return paramsValue;
+                    }
+                    else {
+                        return null;
+                    }
+                }
+
+                let value: any = (isRaw && typeof o.getRawValue == 'function') ? o.getRawValue() : o.getValue();
+                if (o.json && typeof value == 'string') {
+                    value = JSON.parse(value);
+                }
+                else if (o.type == 'daterange' && value != null) {
+                    if (value[0]) {
+                        value[0] = Ext.Date.format(value[0], 'Y-m-d\\T00:00:00.000\\Z');
+                    }
+                    if (value[1]) {
+                        value[1] = Ext.Date.add(value[1], Ext.Date.DAY, 1);
+                        value[1] = Ext.Date.format(value[1], 'Y-m-d\\T00:00:00.000\\Z');
+                    }
+
+                    let expr: any = {
+                        "$gte": value[0],
+                        "$lt": value[1]
+                    };
+                    if (value[0] && !value[1]) {
+                        expr = {
+                            "$gte": value[0]
+                        };
+                    }
+                    else if (value[1] && !value[0]) {
+                        expr = {
+                            "$lt": value[1]
+                        };
+                    }
+
+                    value = expr;
+                }
+                else if (value instanceof Date) {
+                    if (mode == 'mongo') {
+                        if (filter) {
+                            value = {
+                                "$gte": Ext.Date.format(value, 'Y-m-d\\T00:00:00.000\\Z'),
+                                "$lt": Ext.Date.format(Ext.Date.add(value, Ext.Date.DAY, 1), 'Y-m-d\\T00:00:00.000\\Z')
+                            };
+                        }
+                        else {
+                            value = Ext.Date.format(value, 'Y-m-d\\T00:00:00.000\\Z');
+                        }
+                    }
+                    else if (mode == 'api') {
+                        var tz = (new Date()).getTimezoneOffset() * 60000;
+                        value = new Date(value.getTime() - tz).toISOString().slice(0, -1);
+                    }
+                }
+
+                paramsValue = value;
+            }
+            else {
+                paramsValue = null;
+            }
+        }
+        else if (/!?(@\w+)/i.test(pValue.toString())) {
+            var expr = pValue.toString().split(/!?(@\w+)/i).filter(o => o.indexOf('@') > -1)[0];
+            if (this.fetchParamsValue(expr, 'mongo') != null) {
+                paramsValue = pValue.replace(expr, this.fetchParamsValue(expr, 'mongo'));
+            }
+        }
+        else {
+            paramsValue = pValue;
+        }
+
+        if (paramsValue === "") {
+            paramsValue = null;
+        }
+        return paramsValue;
+    }
+
+    fetchAggregate(agg: any[], filter: boolean = false): boolean {
+        let valid: boolean = true;
+        for (let a of agg) {
+            if (a["$match"]) {
+                var fetch = (data, parent = null, key = null) => {
+                    if (data) {
+                        for (let i in data) {
+                            if (typeof data[i] == 'object') {
+                                fetch(data[i], data, i);
+                            } else {
+                                var resValue = this.fetchParamsValue(data[i], 'mongo', filter);
+                                if (resValue == null) {
+                                    if (parent && parent[key])
+                                        delete parent[key];
+                                    else
+                                        delete data[i];
+                                }
+                                else {
+                                    data[i] = resValue;
+                                }
+                            }
+                        }
+                    }
+                }
+                fetch(a["$match"]);
+            }
+        }
+        return valid;
+    }
+
+    fetchParams(pp: any, mode: string, filter: boolean = false): any {
+        var data = {
+            params: pp
+        };
+
+        var params = {};
+
+        if (mode == 'mongo') {
+            var fetch = (data, parent = null, key = null) => {
+                if (data) {
+                    for (let i in data) {
+                        if (typeof data[i] == 'object') {
+                            fetch(data[i], data, i);
+                        } else {
+                            var resValue = this.fetchParamsValue(data[i], 'mongo', filter);
+                            if (resValue == null) {
+                                if (this.getFormMode() == 'edit') {
+                                    if (parent && parent[key])
+                                        parent[key] = null;
+                                    else
+                                        data[i] = null;
+                                }
+                                else {
+                                    if (parent && parent[key])
+                                        delete parent[key];
+                                    else
+                                        delete data[i];
+                                }
+                            }
+                            else {
+                                data[i] = resValue;
+                            }
+                        }
+                    }
+                }
+            }
+            fetch(data.params);
+
+            return data.params;
+        }
+        else {
+            for (let p in data.params) {
+                var pValue = data.params[p];
+                var resValue = this.fetchParamsValue(pValue, mode, filter);
+                params[p] = resValue;
+            }
+
+        }
+
+        // if (mode == 'mongo') {
+        //     var fetch = function (data, parent = null, key = null) {
+        //         if (data) {
+        //             for (let i in data) {
+        //                 if (typeof data[i] == 'object') {
+        //                     fetch(data[i], data, i);
+        //                 } else {
+        //                     if (typeof data[i] == 'string' && /!?(@\w+)/i.test(data[i])) {
+        //                         if (parent && parent[key])
+        //                             delete parent[key];
+        //                         else
+        //                             delete data[i];
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     fetch(data.params);
+        // }
+
+        return params;
+    }
+
     fetchSave(saves: any[]): void {
         for (let config of saves) {
             var data = config.api || config.mongo || config.sql;
@@ -509,62 +866,16 @@ export class FormComponent implements OnInit {
             else if (config.mongo) {
                 mode = 'mongo';
             }
-            var params = {};
-            for (let p in data.params) {
-                var pValue = data.params[p];
-                if (pValue.toString().startsWith('@params')) {
-                    var name = pValue.replace('@params.', '');
-                    params[p] = this.queryParams[name];
-                }
-                else if (pValue.toString().startsWith('@ds')) {
-                    var name = pValue.replace('@ds.', '');
-                    eval('params[p] = this.dsData.' + name);
-                }
-                else if (this.center.indexOf(pValue) > -1) {
-                    params[p] = this.getCenterParam(pValue);
-                }
-                else if (pValue.toString().startsWith('@')) {
-                    var name = pValue.substring(1);
-                    var isRaw = false;
-                    if (name.split('.')[0] == 'raw') {
-                        name = name.split('.')[1];
-                        isRaw = true;
-                    }
-                    var o = this.getCmp(name);
-                    if (o) {
-                        let value: any = (isRaw && typeof o.getRawValue == 'function') ? o.getRawValue() : o.getValue();
-                        if (o.json && typeof value == 'string') {
-                            value = JSON.parse(value);
-                        }
-                        else if (value instanceof Date) {
-                            if (mode == 'mongo') {
-                                value = {
-                                    type: 'date',
-                                    value: value
-                                };
-                            }
-                            else if (mode == 'api') {
-                                var tz = (new Date()).getTimezoneOffset() * 60000;
-                                value = new Date(value.getTime() - tz).toISOString().slice(0, -1);
-                            }
-                        }
 
-                        params[p] = value;
-                    }
-                    else {
-                        params[p] = null;
-                    }
-                }
-                else {
-                    params[p] = pValue;
-                }
-            }
+            let jsonData = JSON.parse(JSON.stringify(data.params));
+            let newParams: any = this.fetchParams(jsonData, mode);
 
             let info: any = {};
 
             if (data.authen) {
                 info.authen = true;
             }
+
             if (config.api) {
                 info.type = "api";
                 info.url = config.api.url;
@@ -576,12 +887,16 @@ export class FormComponent implements OnInit {
                 info.type = "mongo";
                 info.collection = config.mongo.collection;
 
+                let params: any = this.fetchParams(config.mongo.filter, 'mongo');
+                info.filter = params;
+
                 if (config.mongo.pk) {
                     info.pk = config.mongo.pk;
                 }
             }
+
             this.saveData.push(Object.assign({
-                params: params
+                params: newParams
             }, info));
         }
     }
@@ -672,6 +987,12 @@ export class FormComponent implements OnInit {
                                     c.config = {};
                                 }
 
+                                if (c.ws && c.ws.length) {
+                                    if (c.ws.find(o => o == this.authen.ws.wsp_id) == undefined) {
+                                        c.cls += ' d-none';
+                                    }
+                                }
+
                                 let config: any = c.config;
                                 config.renderTo = Ext.get(c.id);
                                 config.labelWidth = 140;
@@ -684,6 +1005,13 @@ export class FormComponent implements OnInit {
                                         cmp.name = c.name;
                                     }
                                     cmp.data = {};
+
+                                    if (c.visible) {
+                                        cmp.setVisible(this.getVisible(c.visible));
+                                    }
+                                    if (c.disable) {
+                                        cmp.setDisabled(this.getVisible(c.disable));
+                                    }
 
                                     if (c.query) {
                                         cmp.data.query = c.query;
@@ -720,6 +1048,10 @@ export class FormComponent implements OnInit {
                                             cmp.mongo = c.data.mongo;
                                             this.remoteData.push(cmp.id);
                                         }
+                                    }
+
+                                    if (c.saveFields) {
+                                        cmp.saveFields = c.saveFields;
                                     }
 
                                     if (c.mapping) {
@@ -765,6 +1097,27 @@ export class FormComponent implements OnInit {
         });
     }
 
+    getVisible(visible: any): boolean {
+        let invisible = false;
+        for (let m of this.formModes) {
+            if (visible[m] == 0) {
+                invisible = true;
+                break;
+            }
+        }
+
+        for (let m of this.formModes) {
+            if (visible[m] == null) {
+                visible[m] = (!invisible) ? 0 : 1;
+            }
+        }
+
+        if (visible[this.getFormMode()] == 0) {
+            return false;
+        }
+        return true;
+    }
+
     getData(config: any, params: any): Promise<any> {
         return new Promise<any>((resolve, reject) => {
             this.dataService.fetchData(config, params)
@@ -795,47 +1148,63 @@ export class FormComponent implements OnInit {
                         let remoteCmp: any = Ext.getCmp(this.remoteData[index]);
                         var config = remoteCmp.api || remoteCmp.mongo || remoteCmp.sql;
 
-                        var params = {};
                         var valid = true;
-                        if (config.params) {
-                            var ds = this.dsData;
-                            for (var p in config.params) {
-                                var pValue = config.params[p];
-                                if (pValue.toString().startsWith('@params')) {
-                                    var name = pValue.replace('@params.', '');
-                                    params[p] = this.queryParams[name];
-                                }
-                                else if (this.center.indexOf(pValue) > -1) {
-                                    params[p] = this.getCenterParam(pValue);
-                                }
-                                else if (pValue.toString().startsWith('@')) {
-                                    let value: any = "";
-                                    var c = Ext.query('[name="' + pValue.substring(1) + '"]');
-                                    if (c.length) {
-                                        var o = Ext.getCmp(c[0].dataset.componentid);
-                                        if (o.mapping) {
-                                            var dsName = o.mapping.substring(0, o.mapping.indexOf('.'));
-                                            if (ds[dsName]) {
-                                                eval('value = ds.' + o.mapping + '');
-                                            }
-                                        }
-                                        params[p] = value;
-                                    }
-                                    else {
-                                        params[p] = pValue;
-                                    }
-                                }
-                                else {
-                                    params[p] = pValue;
-                                }
+                        if (!config.params) {
+                            config.params = config.find;
+                        }
 
-                                if (valid) {
-                                    if (!params[p] || (params[p] && params[p] == "") || params[p].toString().startsWith('@')) {
-                                        valid = false;
-                                    }
+                        if (config.aggregate) {
+                            valid = this.fetchAggregate(config.aggregate);
+                        }
+
+                        let params: any = this.fetchParams(config.params, (remoteCmp.mongo) ? 'mongo' : null);
+                        for (let p in params) {
+                            if (valid) {
+                                if (!params[p] || (params[p] && params[p] == "") || params[p].toString().startsWith('@')) {
+                                    valid = false;
                                 }
                             }
                         }
+
+                        // if (config.params) {
+                        //     var ds = this.dsData;
+                        //     for (var p in config.params) {
+                        //         var pValue = config.params[p];
+                        //         if (pValue.toString().startsWith('@params')) {
+                        //             var name = pValue.replace('@params.', '');
+                        //             params[p] = this.queryParams[name];
+                        //         }
+                        //         else if (this.center.indexOf(pValue) > -1) {
+                        //             params[p] = this.getCenterParam(pValue);
+                        //         }
+                        //         else if (pValue.toString().startsWith('@')) {
+                        //             let value: any = "";
+                        //             var c = Ext.query('[name="' + pValue.substring(1) + '"]');
+                        //             if (c.length) {
+                        //                 var o = Ext.getCmp(c[0].dataset.componentid);
+                        //                 if (o.mapping) {
+                        //                     var dsName = o.mapping.substring(0, o.mapping.indexOf('.'));
+                        //                     if (ds[dsName]) {
+                        //                         eval('value = ds.' + o.mapping + '');
+                        //                     }
+                        //                 }
+                        //                 params[p] = value;
+                        //             }
+                        //             else {
+                        //                 params[p] = pValue;
+                        //             }
+                        //         }
+                        //         else {
+                        //             params[p] = pValue;
+                        //         }
+
+                        //         if (valid) {
+                        //             if (!params[p] || (params[p] && params[p] == "") || params[p].toString().startsWith('@')) {
+                        //                 valid = false;
+                        //             }
+                        //         }
+                        //     }
+                        // }
 
                         if (valid) {
                             this.getData(config, params)
@@ -865,6 +1234,38 @@ export class FormComponent implements OnInit {
         });
     }
 
+    navigateAction(action: any, recordData: any = null): void {
+        var p = {};
+        if (action.params) {
+            for (let i in action.params) {
+                var value = action.params[i];
+                if (recordData) {
+                    if (typeof value == 'string' && value.startsWith('@')) {
+                        eval('value = recordData.' + value.substring(1));
+                    }
+                    p[i] = value;
+                }
+                else {
+                    p[i] = this.fetchParamsValue(value, null);
+                }
+            }
+        }
+
+        if (action.type == 'open') {
+            this.open(action, p);
+        }
+        else if (action.type == 'link') {
+            let path: string = action.path;
+            if (!path) {
+                path = '/form/' + action.id;
+            }
+            this.router.navigate([path], {
+                queryParams: p
+            })
+            // this.open(column.action, p);
+        }
+    }
+
     grid(c: any, config: any): any {
         let columns: any[] = [];
         let fields: any[] = [];
@@ -874,6 +1275,16 @@ export class FormComponent implements OnInit {
             config.cls = 'ext-list';
             for (let col of c.columns) {
                 col.cls = "";
+                if (!col.config) {
+                    col.config = {};
+                }
+
+                if (col.ws && col.ws.length > 0) {
+                    if (col.ws.find(o => o == this.authen.ws.wsp_id) == undefined) {
+                        col.config.hidden = true;
+                    }
+                }
+
                 if (col.type == 'action') {
                     col.config.width = 40 * col.config.items.length;
                     col.config.align = 'center';
@@ -881,13 +1292,22 @@ export class FormComponent implements OnInit {
                 }
                 else {
                     var column;
+
+                    if (col.visible) {
+                        col.config.hidden = !this.getVisible(col.visible);
+                    }
+
                     if (col.config.renderer) {
                         eval('col.config.renderer = ' + col.config.renderer);
                     }
-                    else if (col.mapping || col.action) {
+                    else if (col.mapping || col.action || col.defaultValue) {
                         col.config.renderer = function (value, metaData, record, rowIndex, colIndex) {
+                            var column = this.getColumns()[colIndex];
+                            if (!value && column.defaultValue) {
+                                value = column.defaultValue;
+                            }
+
                             if (value || value === 0 || value === false) {
-                                var column = this.getColumns()[colIndex];
                                 if (column.mapping) {
                                     eval('value = record.data.' + column.mapping);
                                     // var mappings = column.mapping.split('.');
@@ -897,6 +1317,11 @@ export class FormComponent implements OnInit {
                                     //     }
                                     // }
                                 }
+
+                                if (column.type == 'currency') {
+                                    value = Ext.util.Format.numberRenderer('0,0.00')(value);
+                                }
+
                                 if (column.action) {
                                     if (column.action.type == 'open' || column.action.type == 'link') {
                                         return `<a style="text-decoration: underline" href="javascript:void(0)">${value}</a>`;
@@ -908,7 +1333,27 @@ export class FormComponent implements OnInit {
                     }
 
                     if (col.type == 'date') {
-                        col.config.format = 'd/m/Y H:i';
+                        if (!col.config.format) {
+                            col.config.format = 'd/m/Y';
+                        }
+                        if (!col.config.width) {
+                            col.config.width = 100;
+                        }
+                        column = Ext.create('Ext.grid.column.Date', col.config);
+                    }
+                    else if (col.type == 'time') {
+                        if (!col.config.format) {
+                            col.config.format = 'H:i';
+                        }
+                        if (!col.config.width) {
+                            col.config.width = 80;
+                        }
+                        column = Ext.create('Ext.grid.column.Date', col.config);
+                    }
+                    else if (col.type == 'datetime') {
+                        if (!col.config.format) {
+                            col.config.format = 'd/m/Y H:i';
+                        }
                         if (!col.config.width) {
                             col.config.width = 150;
                         }
@@ -925,6 +1370,13 @@ export class FormComponent implements OnInit {
                         };
                         column = Ext.create('Ext.grid.column.Check', col.config);
                     }
+                    else if (col.type == 'currency') {
+                        if (!col.config.renderer) {
+                            col.config.renderer = Ext.util.Format.numberRenderer('0,0.00');
+                        }
+                        col.config.align = 'right';
+                        column = Ext.create('Ext.grid.column.Column', col.config);
+                    }
                     else {
                         column = Ext.create('Ext.grid.column.Column', col.config);
                     }
@@ -935,6 +1387,13 @@ export class FormComponent implements OnInit {
                     if (col.mapping) {
                         column.mapping = col.mapping;
                     }
+                    if (col.defaultValue) {
+                        column.defaultValue = col.defaultValue;
+                    }
+                    if (col.type) {
+                        column.type = col.type;
+                    }
+
                     column.angular = this;
                     columns.push(column);
                 }
@@ -947,26 +1406,7 @@ export class FormComponent implements OnInit {
                 cellclick: (o, td, cellIndex, record, tr, rowIndex, e) => {
                     if (e.target.tagName == 'A') {
                         var column = o.ownerGrid.getColumns()[cellIndex];
-                        var p = {};
-                        if (column.action.params) {
-                            for (let i in column.action.params) {
-                                var value = column.action.params[i];
-                                if (typeof value == 'string' && value.startsWith('@')) {
-                                    eval('value = record.data.' + value.substring(1));
-                                }
-                                p[i] = value;
-                            }
-                        }
-
-                        if (column.action.type == 'open') {
-                            this.open(column.action, p);
-                        }
-                        else if (column.action.type == 'link') {
-                            this.router.navigate([column.action.path], {
-                                queryParams: p
-                            })
-                            // this.open(column.action, p);
-                        }
+                        this.navigateAction(column.action, record.data);
                     }
                 },
                 resize: function (e) {
@@ -987,10 +1427,10 @@ export class FormComponent implements OnInit {
                     if (isView) {
                         viewCount++;
                     }
-                    
+
                     let btnConfig: any = {
                         scale: 'medium',
-                        cls: (b.cls)? b.cls: 'ext-grey',
+                        cls: (b.cls) ? b.cls : 'ext-grey',
                         text: b.text,
                         angular: this,
                         action: b.action,
@@ -998,7 +1438,7 @@ export class FormComponent implements OnInit {
                     };
 
                     if (b.action) {
-                        btnConfig.handler = function() {
+                        btnConfig.handler = function () {
                             var p = {};
                             if (this.action.params) {
                                 for (let i in this.action.params) {
@@ -1020,20 +1460,20 @@ export class FormComponent implements OnInit {
                                     }
                                 }
                             }
-    
+
                             if (c.name) {
                                 p['ref'] = c.name;
                             }
-    
+
                             if (this.action.type == 'open') {
                                 this.angular.open(this.action, p);
                             }
-                        };                     
+                        };
                     }
                     var cmp = Ext.create('Ext.Button', btnConfig);
                     cmp.name = b.name;
                     tbarButtons.push(cmp);
-                    this.view.addComponent(this.formId, cmp);   
+                    this.view.addComponent(this.formId, cmp);
                 }
 
                 var hidden = false;
@@ -1069,7 +1509,15 @@ export class FormComponent implements OnInit {
                                 if (html instanceof Array) {
                                     html = html.join("");
                                 }
-                                var tpl = new Ext.XTemplate(html);            
+                                var tpl = new Ext.XTemplate(
+                                    html,
+                                    {                                        
+                                        toCurrency: function (value) {
+                                            return Ext.util.Format.numberRenderer('0,0.00')(value);
+                                        }
+                                    }
+                                );
+
                                 return {
                                     rowBody: tpl.apply(record.data)
                                 };
@@ -1242,7 +1690,7 @@ export class FormComponent implements OnInit {
         }
         if (c.group) {
             storeConfig.groupField = c.group;
-        }        
+        }
         if (c.sort) {
             storeConfig.sorters = [];
             for (let s in c.sort) {
@@ -1282,11 +1730,21 @@ export class FormComponent implements OnInit {
                 proxy.mode = 'mongo';
 
                 proxy.extraParams = {
-                    collection: dataConfig.collection,
-                    find: dataConfig.query
+                    collection: dataConfig.collection
                 }
+
+                if (dataConfig.find) {
+                    var jsonFind = JSON.parse(JSON.stringify(dataConfig.find));
+                    proxy.extraParams.find = this.fetchParams(jsonFind, 'mongo', true);
+                }
+                else if (dataConfig.aggregate) {
+                    let agg: any[] = JSON.parse(JSON.stringify(dataConfig.aggregate));
+                    this.fetchAggregate(agg, true);
+                    proxy.extraParams.aggregate = agg; //this.fetchParams(jsonAggregate, 'mongo');                    
+                }
+
                 if (dataConfig.sort) {
-                    proxy.extraParams.sort = JSON.stringify(dataConfig.sort);
+                    proxy.extraParams.sort = dataConfig.sort; //JSON.stringify(dataConfig.sort);
                 }
             }
             else if (c.paging.api) {
@@ -1733,87 +2191,195 @@ export class FormComponent implements OnInit {
                         var store = grid.getStore();
 
                         if (grid.data.mode == 'mongo') {
-                            var find;
-                            if (!grid.data.config.query) {
-                                grid.data.config.query = "{}";
+                            // var find;
+                            // if (!grid.data.config.query) {
+                            //     grid.data.config.query = "{}";
+                            //     eval('find = ' + grid.data.config.query);
+                            // }
+                            // else {
+                            //     eval('find = ' + grid.data.config.query);
+                            // }
+
+                            // if (!grid.data.config.find) {
+                            //     find = {};
+                            // }
+                            // else {
+                            //     find = grid.data.config.find;
+                            // }
+
+                            // var filterParams = find;
+                            // for (let filterName of grid.data.config.filter) {
+                            //     let cmp: any = this.angular.getCmp(filterName);
+                            //     if (cmp && cmp.name) {
+                            //         let value: any = cmp.getValue();
+                            //         if (value || value === 0 || value === false) {
+                            //             let fieldName: string = cmp.mapping || cmp.name;
+                            //             if (cmp.type == 'daterange') {
+                            //                 if (value[0]) {
+                            //                     value[0] = Ext.Date.format(value[0], 'Y-m-d\\T00:00:00.000\\Z');
+                            //                 }
+                            //                 if (value[1]) {
+                            //                     value[1] = Ext.Date.add(value[1], Ext.Date.DAY, 1);
+                            //                     value[1] = Ext.Date.format(value[1], 'Y-m-d\\T00:00:00.000\\Z');
+                            //                 }
+
+                            //                 let expr: any = {
+                            //                     "$gte": value[0],
+                            //                     "$lt": value[1]
+                            //                 };
+                            //                 if (value[0] && !value[1]) {
+                            //                     expr = {
+                            //                         "$gte": value[0]
+                            //                     };
+                            //                 }
+                            //                 else if (value[1] && !value[0]) {
+                            //                     expr = {
+                            //                         "$lt": value[1]
+                            //                     };
+                            //                 }
+
+                            //                 let query: any = {};
+                            //                 query[fieldName] = expr;
+                            //                 Object.assign(filterParams, query);
+                            //             }
+                            //             else if (cmp.type == 'date') {
+                            //                 let query: any = {};
+                            //                 query[fieldName] = {
+                            //                     "$gte": Ext.Date.format(value, 'Y-m-d\\T00:00:00.000\\Z'),
+                            //                     "$lt": Ext.Date.format(Ext.Date.add(value, Ext.Date.DAY, 1), 'Y-m-d\\T00:00:00.000\\Z')
+                            //                 };
+                            //                 Object.assign(filterParams, query);
+                            //             }
+                            //             else {
+                            //                 let cmpFind: any = cmp.data.query || cmp.data.find;
+                            //                 if (typeof cmpFind == 'object') {
+                            //                     let query: any = {};
+                            //                     query[fieldName] = this.angular.fetchParams(cmpFind, 'mongo', value);
+                            //                     Object.assign(filterParams, query);
+                            //                 }
+                            //                 else {
+                            //                     // if (!cmpFind) {
+                            //                     //     cmpFind = '{{value}}';
+                            //                     //     if (typeof value == 'string') {
+                            //                     //         value = '"' + value + '"';
+                            //                     //     }
+                            //                     // }
+                            //                     // cmpFind = cmpFind.replace('{{value}}', value);
+                            //                     // let exp: string = `{ '${fieldName}': ${cmpFind} }`;
+                            //                     // var query;
+                            //                     // eval('query = ' + exp);
+                            //                     let query: any = {};
+                            //                     query[fieldName] = value;
+                            //                     Object.assign(filterParams, query);
+                            //                 }
+                            //             }
+                            //         }
+                            //     }
+                            // }                            
+
+                            if (grid.data.config.aggregate) {
+                                let agg: any[] = JSON.parse(JSON.stringify(grid.data.config.aggregate));
+
+                                this.angular.fetchAggregate(agg, true);
+
+                                store.proxy.extraParams.aggregate = agg;
                             }
-                            eval('find = ' + grid.data.config.query);
+                            else if (grid.data.config.find) {
+                                // let filterParams: any = {};
+                                // for (let filterName of grid.data.config.filter || {}) {
+                                //     let cmp: any = this.angular.getCmp(filterName);
+                                //     if (cmp && cmp.name) {
+                                //         let value: any = cmp.getValue();
+                                //         if (value || value === 0 || value === false) {
+                                //             let fieldName: string = cmp.mapping || cmp.name;
+                                //             if (cmp.type == 'daterange') {
+                                //                 if (value[0]) {
+                                //                     value[0] = Ext.Date.format(value[0], 'Y-m-d\\T00:00:00.000\\Z');
+                                //                 }
+                                //                 if (value[1]) {
+                                //                     value[1] = Ext.Date.add(value[1], Ext.Date.DAY, 1);
+                                //                     value[1] = Ext.Date.format(value[1], 'Y-m-d\\T00:00:00.000\\Z');
+                                //                 }
 
-                            var filterParams = find;
-                            for (let filterName of grid.data.config.filter) {
-                                let cmp: any = this.angular.getCmp(filterName);
-                                if (cmp && cmp.name) {
-                                    let value: any = cmp.getValue();
-                                    if (value || value === 0 || value === false) {
-                                        let fieldName: string = cmp.mapping || cmp.name;
-                                        if (cmp.type == 'daterange') {
-                                            if (value[0]) {
-                                                value[0] = Ext.Date.format(value[0], 'Y-m-d');
-                                            }
-                                            if (value[1]) {
-                                                value[1] = Ext.Date.add(value[1], Ext.Date.DAY, 1);
-                                                value[1] = Ext.Date.format(value[1], 'Y-m-d');
-                                            }
+                                //                 let expr: any = {
+                                //                     "$gte": value[0],
+                                //                     "$lt": value[1]
+                                //                 };
+                                //                 if (value[0] && !value[1]) {
+                                //                     expr = {
+                                //                         "$gte": value[0]
+                                //                     };
+                                //                 }
+                                //                 else if (value[1] && !value[0]) {
+                                //                     expr = {
+                                //                         "$lt": value[1]
+                                //                     };
+                                //                 }
 
-                                            var expr = `{ $gte: "ISODate('${value[0]}')", $lte: "ISODate('${value[1]}')" }`;
-                                            if (value[0] && !value[1]) {
-                                                expr = `{ $gte: "ISODate('${value[0]}')" }`;
-                                            }
-                                            else if (value[1] && !value[0]) {
-                                                expr = `{ $gte: "${value[0]}" }`;
-                                            }
+                                //                 let query: any = {};
+                                //                 query[fieldName] = expr;
+                                //                 Object.assign(filterParams, query);
+                                //             }
+                                //             else if (cmp.type == 'date') {
+                                //                 let query: any = {};
+                                //                 query[fieldName] = {
+                                //                     "$gte": Ext.Date.format(value, 'Y-m-d\\T00:00:00.000\\Z'),
+                                //                     "$lt": Ext.Date.format(Ext.Date.add(value, Ext.Date.DAY, 1), 'Y-m-d\\T00:00:00.000\\Z')
+                                //                 };
+                                //                 Object.assign(filterParams, query);
+                                //             }
+                                //             else {
+                                //                 let query: any = {};
+                                //                 query[fieldName] = this.angular.fetchParamsValue(value, 'mongo');
+                                //                 Object.assign(filterParams, query);
+                                //             }
+                                //         }
+                                //     }
+                                // }
 
-                                            var query;
-                                            eval('query = ' + `{ '${fieldName}': ${expr} } `);
-                                            Object.assign(filterParams, query);
-                                        }
-                                        else {
-                                            let cmpFind: string = cmp.data.query;
-                                            if (!cmpFind) {
-                                                cmpFind = '{{value}}';
-                                                if (typeof value == 'string') {
-                                                    value = '"' + value + '"';
-                                                }
-                                            }
-                                            cmpFind = cmpFind.replace('{{value}}', value);
-                                            let exp: string = `{ '${fieldName}': ${cmpFind} }`;
-                                            var query;
-                                            eval('query = ' + exp);
+                                let find: any = JSON.parse(JSON.stringify(grid.data.config.find));
+                                store.proxy.extraParams.find = this.angular.fetchParams(find, 'mongo', true);
+                            }
 
-                                            Object.assign(filterParams, query);
-                                        }
+                            // if (filterParams) {
+                            //     store.proxy.extraParams.find = filterParams;
+                            // }
+                            // else {
+                            //     store.proxy.extraParams.find = find;
+                            // }
+
+                            store.proxy.setUrl(Config.ServiceUrl + '/data?page=1&size=' + Config.PageSize);
+
+                            store.loadPage(1);
+                            store.load();
+
+                            if (this.export) {
+                                var findQuery = {
+                                    find: store.proxy.extraParams.find
+                                };
+                                Object.assign(findQuery, store.proxy.extraParams);
+
+                                let columns: any[] = [];
+                                for (let i = 0; i < grid.getColumns().length; i++) {
+                                    var c = grid.getColumns()[i];
+                                    if (c.dataIndex) {
+                                        let colConfig: any = {
+                                            text: c.text,
+                                            dataIndex: c.mapping || c.dataIndex,
+                                            width: c.width || c.cellWidth,
+                                            mapping: (c.mapping) ? true : false
+                                        };
+
+                                        columns.push(colConfig);
+
                                     }
                                 }
-                            }
-
-                            if (!this.export) {
-                                if (filterParams) {
-                                    store.proxy.extraParams.find = JSON.stringify(filterParams);
-                                }
-                                else {
-                                    store.proxy.extraParams.find = JSON.stringify(find);
-                                }
-                                store.proxy.setUrl(Config.ServiceUrl + '/data?page=1&size=' + Config.PageSize);
-
-                                store.loadPage(1);
-                                store.load();
-                            }
-                            else {
-                                var exportParams = store.proxy.extraParams;
-                                if (filterParams) {
-                                    exportParams.find = JSON.stringify(filterParams);
-                                }
-                                else {
-                                    exportParams.find = JSON.stringify(find);
-                                }
-
-                                let excelForm: any = document.getElementById('excelForm');
-                                excelForm.data.value = JSON.stringify({
-                                    excel: {},
-                                    filter: exportParams
+                                this.angular.dataService.exportExcel({
+                                    columns: columns,
+                                    filter: findQuery
+                                }).then(data => {
+                                    window.location.href = Config.ServiceUrl + '/download?path=' + data.path;
                                 });
-                                excelForm.submit();
-                                excelForm.data.value = null;
                             }
                         }
                         else if (grid.data.mode == 'api') {
@@ -1856,17 +2422,21 @@ export class FormComponent implements OnInit {
                                 scale: 'medium',
                                 cls: 'ext-grey',
                                 iconCls: 'fas fa-redo-alt fa-1x',
-                                ariaAttributes: config.ariaAttributes,
+                                hidden: (!c.resets) ? true : false,
                                 angular: this,
+                                resets: c.resets,
                                 text: this.translate.instant('clear'),
                                 handler: function () {
-                                    var filterRef = this.ariaAttributes.filter;
-                                    var grid = this.angular.getCmp(filterRef);
-                                    for (let filterName of grid.data.config.filter) {
-                                        var e = Ext.query('[name="' + filterName + '"]')[0];
-                                        let cmp: any = Ext.getCmp(e.dataset.componentid);
+                                    for (let filterName of this.resets) {
+                                        let cmp: any = this.angular.getCmp(filterName);
                                         if (cmp) {
-                                            cmp.setValue(null);
+                                            if (cmp.type == 'daterange') {
+                                                cmp.items.get(0).setValue(null);
+                                                cmp.items.get(2).setValue(null);
+                                            }
+                                            else {
+                                                cmp.setValue(null);
+                                            }
                                         }
                                     };
                                 }
@@ -1874,26 +2444,35 @@ export class FormComponent implements OnInit {
                         ]
                     });
 
-                    // if (c.export) {
-                    //     var exportButton = Ext.create('Ext.Button', Object.assign(config, {
-                    //         scale: 'medium',
-                    //         cls: 'ext-grey',
-                    //         iconCls: 'fas fa-file-excel fa-1x',
-                    //         text: this.translate.instant('export_excel')
-                    //     }));
-                    //     exportButton.angular = this;
-                    //     exportButton.export = true;
-                    //     cmp.items.add(exportButton);
-                    // }
+                    if (c.export) {
+                        var exportButton = Ext.create('Ext.Button', Object.assign(config, {
+                            scale: 'medium',
+                            cls: 'ext-grey',
+                            iconCls: 'fas fa-file-excel fa-1x',
+                            text: this.translate.instant('export_excel')
+                        }));
+                        exportButton.angular = this;
+                        exportButton.export = true;
+                        cmp.items.add(exportButton);
+                    }
 
                     return cmp;
                 }
                 else {
+                    if (c.action) {
+                        config.handler = function () {
+                            this.angular.navigateAction(this.action);
+                        };
+                    }
+
                     config.style = { top: '-3px' };
                     if (config.fieldLabel === "") {
                         config.style.marginLeft = '145px';
                     }
-                    return Ext.create('Ext.Button', config);
+                    var button = Ext.create('Ext.Button', config);
+                    button.action = c.action;
+                    button.angular = this;
+                    return button;
                 }
                 // break;
             }

@@ -3,7 +3,7 @@ import 'rxjs/add/operator/toPromise';
 import { Observable, Subscription } from 'rxjs/Rx';
 import { Injectable } from '@angular/core';
 import { URLSearchParams } from '@angular/http';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 
 import { environment, Config } from '../../../environments/environment';
 
@@ -14,7 +14,8 @@ import { TranslateService } from '../shared/translate.service';
 
 @Injectable()
 export class AuthenService {
-    user: UserModel = null;
+    user: any = null;
+    ws: any = null;
     url: string = null;
 
     constructor(private http: HttpClient, private storage: StorageService, private translate: TranslateService) { }
@@ -26,6 +27,26 @@ export class AuthenService {
 
     load(): void {
         this.user = this.storage.get('user');
+    }
+
+    verifyWorkspace(): Promise<any> {
+        let params: HttpParams = new HttpParams({
+            fromObject: { href: document.querySelector('base').getAttribute('href') }
+        });
+        
+        return this.http.get(Config.ServiceUrl + '/ws/verify', { params: params }).toPromise()
+            .then((data: any) => {
+                if (!data.error) {
+                    this.ws = data;
+                    return Promise.resolve();
+                }
+                else {
+                    throw data;
+                }
+            })
+            .catch((data: any) => {
+                return Promise.reject(data);
+            });
     }
 
     logIn(username: string, password: string): Promise<any> {

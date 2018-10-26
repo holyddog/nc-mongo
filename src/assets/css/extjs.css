@@ -7,6 +7,10 @@
     width: 100%;
 }
 
+.x-webkit .x-form-text {
+    height: 100%;
+}
+
 .x-form-file-wrap .x-form-trigger-wrap {
     width: auto !important;
 }
@@ -36,6 +40,8 @@ legend.x-fieldset-header-default {
 .x-toolbar-text-default,
 .x-form-display-field-default,
 .x-boundlist-item,
+.x-window-body-default,
+.x-window-header-title-default,
 .x-grid-rowbody {
     font: 300 13px 'Kanit', sans-serif;
 }
@@ -55,7 +61,7 @@ legend.x-fieldset-header-default {
 }
 
 .x-grid-rowbody {
-    padding: 0;
+    padding: 5px 0;
 }
 
 .x-btn-inner-default-toolbar-medium {

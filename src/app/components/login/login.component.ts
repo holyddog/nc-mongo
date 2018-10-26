@@ -6,6 +6,8 @@ import { StorageService } from '../../services/shared/storage.service';
 
 import { AuthenService } from '../../services/api/authen.service';
 import { ViewService } from '../../services/shared/view.service';
+import { AppService } from 'app/services/shared/app.service';
+import { Config } from 'environments/environment';
 
 declare var Ext: any;
 
@@ -13,35 +15,33 @@ declare var Ext: any;
     selector: 'app-login',
     templateUrl: './login.component.html',
     styleUrls: ['./login.component.css'],
-    host: { class: 'fill-dock d-flex v-center h-center' }
+    host: { class: 'fill-dock d-flex v-center h-center flex-column' }
 })
 export class LoginComponent implements OnInit {
-    loading: boolean = false;
+    config: any = Config;
+    year: number = new Date().getFullYear();
 
-    constructor(private router: Router, private view: ViewService, private route: ActivatedRoute, private translate: TranslateService, private storage: StorageService, private authenService: AuthenService) { }
+    constructor(private app: AppService, private view: ViewService, public authenService: AuthenService) { }
 
-    ngOnInit() {        
-        this.view.setForm({
-            id: 'login'
-        });
-    }
+    ngOnInit() {
+        this.app.showLoading();
+        this.authenService.verifyWorkspace()
+            .then(() => {
+                this.app.hideLoading();
 
-    logIn(): void {
-        this.loading = true;
-        setTimeout(() => {
-            this.loading = false;
+                this.view.setForm({
+                    id: 'login'
+                });
+            })
+            .catch(data => {
+                this.app.hideLoading();
 
-            this.authenService.user = {
-                "id": 188,
-                "email": "holyddog@gmail.com",
-                "name": "Chanon Trising",
-                "role": "admin",
-                "outlet_id": 381,
-                "outlet_name": "Lak Si"
-            };
-            this.storage.set('user', this.authenService.user);
-            this.storage.set('access_token', "8GC=CDDDCAKBF4C");
-            this.router.navigate(['/']);
-        }, 0);
+                if (data && data.error) {
+                    this.view.alert(data.error.message);
+                }
+                else {
+                    this.view.alert('Unknown error.');
+                }
+            });
     }
 }

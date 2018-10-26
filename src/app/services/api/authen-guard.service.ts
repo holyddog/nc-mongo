@@ -7,10 +7,12 @@ import { AuthenService } from './authen.service';
 export class AuthenGuardService implements CanActivate {
     constructor(private authenService: AuthenService, private router: Router) { }
 
-    canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean {
+    canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): Promise<boolean> {
         let url: string = state.url;
 
-        return this.checkLogin(url);
+        return this.authenService.verifyWorkspace().then(() => {
+            return this.checkLogin(url);
+        });
     }
 
     checkLogin(url: string): boolean {

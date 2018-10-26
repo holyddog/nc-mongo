@@ -5,16 +5,16 @@ export const environment = {
 };
 
 var host = window.location.host;
-
+declare var AppConfig: any;
 export const Config = {
     AppName: 'NC BOM',
     PageSize: 10,
-
-    ServiceUrl: 'http://27.254.138.120:3208',
-    AuthenUrl: 'http://27.254.138.120:3201/dev/ecv/POS-OnlineService',
-    FileUrl: 'http://27.254.138.120:3208/files',
-    ImageUrl: 'http://27.254.138.120:3203/files',
     
+    ServiceUrl: AppConfig.ServiceUrl,
+    AuthenUrl: AppConfig.AuthenUrl,
+    FileUrl: AppConfig.FileUrl,
+    ImageUrl: 'http://203.154.51.244:85/files',
+
     // ServiceUrl: 'http://203.154.51.242',
     // AuthenUrl: 'http://203.154.51.241/Pro/SPOnlineService',
     // FileUrl: 'http://203.154.51.242/files',

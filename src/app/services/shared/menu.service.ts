@@ -14,7 +14,7 @@ export class MenuService {
         this.active = true;
     }
 
-    hideMenu(name: string): void {
+    hideMenu(name: string = null): void {
         this.active = false;
 
         if (name) {
@@ -23,6 +23,9 @@ export class MenuService {
     }
 
     setName(name: string): void {
+        if (!name) {
+            name = "/x";
+        }
         name = name.substring(name.lastIndexOf('/') + 1);
         if (this.name == name) {
             this.name = "";
@@ -30,5 +33,12 @@ export class MenuService {
         else {
             this.name = name;
         }
+    }
+
+    match(name: string, link: string): boolean {
+        if (!link) {
+            link = "/x";
+        }
+        return name == link.substring(link.lastIndexOf('/') + 1)
     }
 }

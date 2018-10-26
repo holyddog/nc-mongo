@@ -61,6 +61,35 @@ export class DataService {
             }
             return this.http.post(Config.ServiceUrl + url, { query: query }, { headers: headers }).toPromise();
         }
+        else if (config.collection) {
+            let query: any = {
+                collection: config.collection
+            };
+
+            if (config.find) {
+                query.find = config.find;
+                for (let i in params) {
+                    if (params[i] == "") {
+                        params[i] = null;
+                    }
+                    config.find[i] = params[i];
+                }
+            }
+
+            if (config.aggregate) {
+                query.aggregate = config.aggregate;
+            }
+
+            if (config.sort) {
+                query.sort = config.sort;
+            }
+
+            var url = '/query';
+            if (config.single) {
+                url += '?single=1'
+            }
+            return this.http.post(Config.ServiceUrl + url, query, { headers: headers }).toPromise();
+        }
         else {
             return Promise.resolve();
         }
@@ -87,11 +116,11 @@ export class DataService {
             headers = this.authorizationHeader().headers;
         }
 
-        if (config.type == 'api') {
-            if (!config.method) {
-                config.method = 'POST';
-            }
+        if (!config.method) {
+            config.method = 'POST';
+        }
 
+        if (config.type == 'api') {
             if (config.method.toUpperCase() == 'PUT') {
                 return this.http.put(config.url, config.params, { headers: headers }).toPromise();
             }
@@ -133,6 +162,10 @@ export class DataService {
 
     }
 
+    exportExcel(data: any): Promise<any> {
+        return this.http.post(Config.ServiceUrl + '/excel/export', data).toPromise();
+    }
+
     findByKey(key: any, collection: string, pk: string): Promise<any> {
         return this.http.get(Config.ServiceUrl + '/data/' + key + '?collection=' + collection + '&pk=' + pk).toPromise();
     }
@@ -147,7 +180,7 @@ export class DataService {
     }
 
     uploadExcel(formData: FormData): Promise<any> {
-        return this.http.post(Config.ServiceUrl + '/read-excel', formData)
+        return this.http.post(Config.ServiceUrl + '/excel/read', formData)
             .toPromise();
     }
 
