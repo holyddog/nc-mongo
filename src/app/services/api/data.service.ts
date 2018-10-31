@@ -121,8 +121,20 @@ export class DataService {
         }
 
         if (config.type == 'api') {
+            if (config.url.startsWith('{{SERVICE_URL}}')) {
+                config.url = config.url.replace('{{SERVICE_URL}}', Config.ServiceUrl);
+            }
+
             if (config.method.toUpperCase() == 'PUT') {
                 return this.http.put(config.url, config.params, { headers: headers }).toPromise();
+            }
+            else if (config.method.toUpperCase() == 'GET') {
+                return this.http.get(config.url, { 
+                    headers: headers, 
+                    params: new HttpParams({
+                        fromObject: config.params
+                    }) 
+                }).toPromise();
             }
             else {
                 return this.http.post(config.url, config.params, { headers: headers }).toPromise();

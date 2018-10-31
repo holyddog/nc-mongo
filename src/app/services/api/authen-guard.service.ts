@@ -12,6 +12,8 @@ export class AuthenGuardService implements CanActivate {
 
         return this.authenService.verifyWorkspace().then(() => {
             return this.checkLogin(url);
+        }).catch(() => {
+            return false;
         });
     }
 

@@ -271,12 +271,13 @@ export class FormComponent implements OnInit {
                                             else if (this.action.type == 'select') {
                                                 if (this.action.src) {
                                                     let itemsData: any[] = [];
-                                                    var selectedItems = this.angular.getCmp(this.action.src).getSelectionModel().getSelected().items;
-                                                    for (let it of selectedItems) {
+                                                    var selectedItems = this.angular.getCmp(this.action.src).getSelectionModel().checkItems;
+                                                    for (var i in selectedItems) {
+                                                        var it = selectedItems[i];
                                                         let row: any = {};
                                                         for (let m in this.action.mapping) {
                                                             var key = this.action.mapping[m].substring(1);
-                                                            row[m] = it.get(key);
+                                                            row[m] = it[key];
                                                         }
                                                         itemsData.push(row);
                                                     }
@@ -298,31 +299,63 @@ export class FormComponent implements OnInit {
                                                 }
                                             }
                                             else if (this.action.type == 'save') {
+                                                let formValid: boolean = true;
+                                                let validates: string[] = ["text", "textarea", "number", "currency", "combobox", "date", "time", "password"];
+                                                let fields: any = Ext.CacheComponents
+                                                    .find(o => o.id == this.angular.formId)
+                                                    .items
+                                                    .filter(o => {
+                                                        return validates.indexOf(o.type) > -1;
+                                                    });
+
+                                                let errMessage: string = "";
+
+                                                for (let f of fields) {
+                                                    if (!f.isValid()) {
+                                                        formValid = false;
+
+                                                        let strip = (html: string): string => {
+                                                            var tmp = document.createElement("DIV");
+                                                            tmp.innerHTML = html;
+                                                            return tmp.textContent || tmp.innerText || "";
+                                                        }
+
+                                                        errMessage = 'กรุณากรอกข้อมูล "' + strip(f.fieldLabel).replace('* ', '') + '"';
+                                                        break;
+                                                    }
+                                                }
+
+                                                if (!formValid) {
+                                                    this.angular.view.alert(errMessage);
+                                                    return;
+                                                }
+
                                                 this.setDisabled(true);
 
                                                 let finishSave = () => {
                                                     this.setDisabled(false);
+                                                    this.angular.resultData = [];
 
                                                     this.angular.view.alert(this.angular.translate.instant('save_success')).then(() => {
-                                                        // if (this.angular.isDialog) {
-                                                        //     this.angular.view.closeDialog();
-                                                        // }
-                                                        // else {                                                            
-                                                        //     this.angular.view.closeForm();
-                                                        // }
-
-                                                        // if (save.onFinish) {
-                                                        //     if (save.onFinish == 'back') {
-                                                        //         this.angular.view.closeForm();
-                                                        //     }
-                                                        // }
-                                                        // else {
-                                                        //     if (!this.hasKey) {
-                                                        //     }
-                                                        // }
+                                                        if (this.angular.view.forms.length > 1) {
+                                                            if (this.angular.isDialog) {
+                                                                this.angular.view.closeDialog();
+                                                            }
+                                                            else {
+                                                                this.angular.view.closeForm();
+                                                            }
+                                                        }
+                                                        else {
+                                                            if (this.action.callback && this.action.callback.id) {
+                                                                this.angular.router.navigate(['/form/' + this.action.callback.id], {
+                                                                    queryParams: {}
+                                                                });
+                                                            }
+                                                        }
                                                     });
                                                 };
 
+                                                let errorList: any[] = [];
                                                 let saveData = (index: number, endPoint: any): void => {
                                                     if (index < endPoint.length) {
                                                         if (endPoint[index].type == 'mongo' && this.angular.hasKey) {
@@ -332,11 +365,16 @@ export class FormComponent implements OnInit {
                                                         this.angular.dataService.saveData(endPoint[index])
                                                             .then(resultData => {
                                                                 this.angular.resultData.push(resultData);
+
+                                                                if (index + 1 < endPoint.length) {
+                                                                    this.angular.fetchParams(endPoint[index + 1].params, endPoint[index + 1].type);
+                                                                }
+
                                                                 saveData(index + 1, endPoint);
                                                             })
                                                             .catch(err => {
-                                                                console.log('error', err);
-                                                                saveData(index + 1, endPoint);
+                                                                errorList.push(err);
+                                                                saveData(endPoint.length, endPoint);
                                                             });
 
                                                         // console.log(endPoint[index]);
@@ -344,17 +382,22 @@ export class FormComponent implements OnInit {
                                                     }
                                                     else {
                                                         this.angular.saveData = [];
-
-                                                        if (typeof this.angular.onAfterSave == 'function') {
-                                                            new Promise<any>((resolve, reject) => {
-                                                                this.angular.onAfterSave(resolve);
-                                                            })
-                                                                .then(() => {
-                                                                    finishSave();
-                                                                });
+                                                        if (errorList.length == 0) {
+                                                            if (typeof this.angular.onAfterSave == 'function') {
+                                                                new Promise<any>((resolve, reject) => {
+                                                                    this.angular.onAfterSave(resolve);
+                                                                })
+                                                                    .then(() => {
+                                                                        finishSave();
+                                                                    });
+                                                            }
+                                                            else {
+                                                                finishSave();
+                                                            }
                                                         }
                                                         else {
-                                                            finishSave();
+                                                            this.setDisabled(false);
+                                                            console.log(errorList);
                                                         }
                                                     }
                                                 };
@@ -647,6 +690,14 @@ export class FormComponent implements OnInit {
                 paramsValue = this.authen.ws[key];
             }
         }
+        else if (pValue.toString().startsWith('@result')) {
+            if (this.resultData.length == 0) {
+                return pValue;
+            }
+            else {
+                eval('paramsValue = ' + pValue.toString().replace('@result', 'this.resultData'));
+            }
+        }
         else if (pValue.toString().startsWith('@')) {
             if (this.reserveKeys.indexOf(pValue.toString()) > -1) {
                 return pValue;
@@ -865,6 +916,9 @@ export class FormComponent implements OnInit {
             }
             else if (config.mongo) {
                 mode = 'mongo';
+            }
+            if (!data.params) {
+                data.params = {};
             }
 
             let jsonData = JSON.parse(JSON.stringify(data.params));
@@ -1285,6 +1339,12 @@ export class FormComponent implements OnInit {
                     }
                 }
 
+                if (col.iconCls) {
+                    col.defaultValue = '<i class="' + col.iconCls + '"></i>';
+                    col.config.width = 40;
+                    col.config.align = 'center';
+                }
+
                 if (col.type == 'action') {
                     col.config.width = 40 * col.config.items.length;
                     col.config.align = 'center';
@@ -1404,7 +1464,7 @@ export class FormComponent implements OnInit {
             }
             config.listeners = {
                 cellclick: (o, td, cellIndex, record, tr, rowIndex, e) => {
-                    if (e.target.tagName == 'A') {
+                    if (e.target.tagName == 'A' || e.target.tagName == 'I') {
                         var column = o.ownerGrid.getColumns()[cellIndex];
                         this.navigateAction(column.action, record.data);
                     }
@@ -1491,7 +1551,23 @@ export class FormComponent implements OnInit {
                 config.selModel = {
                     selType: 'checkboxmodel',
                     checkOnly: true,
-                    allowDeselect: true
+                    allowDeselect: true,
+                    listeners: {
+                        select: function (sm, rec) {
+                            if (!sm.checkItems) {
+                                sm.checkItems = [];
+                            }
+                            sm.checkItems[rec.get('id')] = rec.data;
+                        },
+                        deselect: function (sm, rec) {
+                            if (!sm.checkItems) {
+                                sm.checkItems = [];
+                            }
+                            if (sm.checkItems[rec.get('id')]) {
+                                delete sm.checkItems[rec.get('id')];
+                            }
+                        }
+                    }
                 };
                 columns[0].cls = (columns[0].cls + " ext-col-bl-line").trim();
             }
@@ -1511,7 +1587,7 @@ export class FormComponent implements OnInit {
                                 }
                                 var tpl = new Ext.XTemplate(
                                     html,
-                                    {                                        
+                                    {
                                         toCurrency: function (value) {
                                             return Ext.util.Format.numberRenderer('0,0.00')(value);
                                         }
@@ -1779,18 +1855,45 @@ export class FormComponent implements OnInit {
             //     proxy.headers = { 'Authorization': 'Bearer ' + this.storage.get('access_token') };
             // }
 
+            let listeners: any = {
+                load: function (store) {
+                    setTimeout(() => {
+                        window.dispatchEvent(new Event('resize'));
+                    }, 0);
+
+                    var sm = store.ownerGrid.getSelectionModel();
+                    if (sm && sm.checkItems) {
+                        store.each(function (item) {
+                            if (sm.checkItems[item.get('id')]) {
+                                sm.select(item, true);
+                            }
+                        });
+                    }
+
+                    // if (!store.checkedItems) store.checkedItems = [];
+                    // store.each(function (item) {
+                    //     item.set("selected", store.checkedItems[item.get("_id")]);
+                    // });
+                }
+            };
+
+            // if (c.selModel) {
+            //     Object.assign(listeners, {
+            //         beforeload: function (store) {
+            //             if (!store.checkedItems) store.checkedItems = [];
+            //             store.each(function (item) {
+            //                 store.checkedItems[item.get("_id")] = item.get("selected");
+            //             });
+            //         }
+            //     });
+            // }
+
             store = Ext.create('Ext.data.JsonStore', {
                 pageSize: Config.PageSize,
                 autoLoad: true,
                 proxy: proxy,
                 // ref: refValue,
-                listeners: {
-                    load: function () {
-                        setTimeout(() => {
-                            window.dispatchEvent(new Event('resize'));
-                        }, 0);
-                    }
-                }
+                listeners: listeners
             });
             docks.push({
                 xtype: 'pagingtoolbar',
@@ -1813,6 +1916,19 @@ export class FormComponent implements OnInit {
                             p[proxy.pageParams.page] = page;
                             proxy.setExtraParams(Object.assign(proxy.getExtraParams(), p));
                         }
+
+                        // console.log(self.ownerCt.getSelectionModel().checkItems);
+
+                        // var sm = self.ownerCt.getSelectionModel();
+                        // if (sm.getSelected()) {
+                        //     if (!self.ownerCt.getStore().checkedItems) 
+                        //         self.ownerCt.getStore().checkedItems = [];
+
+                        //     for (var i = 0; i < sm.getSelected().length; i++) {
+                        //         var row = sm.getSelected().getAt(i);
+                        //         store.checkedItems[row.get("_id")] = true;
+                        //     }
+                        // }
                     }
                 }
             });
@@ -1888,6 +2004,10 @@ export class FormComponent implements OnInit {
         if (c.autoHeight == true) {
             var cls = config.cls || '';
             config.cls = (cls + ' ext-auto-height').trim();
+            config.viewConfig = {
+                deferEmptyText: false,
+                emptyText: "ไม่มีข้อมูล"
+            }
         }
         else {
             data.minHeight = (c.type == 'grid') ? 300 : 170;
@@ -1897,7 +2017,10 @@ export class FormComponent implements OnInit {
                 ftype: 'grouping'
             }];
         }
-        return Ext.create('Ext.grid.Panel', Object.assign(data, config));
+
+        var grid = Ext.create('Ext.grid.Panel', Object.assign(data, config));
+        store.ownerGrid = grid;
+        return grid;
     }
 
     createPicBox(imagePath): any {
@@ -1961,6 +2084,10 @@ export class FormComponent implements OnInit {
                 }
             }
             config.readOnly = readOnly;
+        }
+
+        if (config.allowBlank == false && config.fieldLabel) {
+            config.fieldLabel = '<span style="color: red">*</span> ' + config.fieldLabel;
         }
 
         switch (c.type) {
@@ -2469,6 +2596,7 @@ export class FormComponent implements OnInit {
                     if (config.fieldLabel === "") {
                         config.style.marginLeft = '145px';
                     }
+
                     var button = Ext.create('Ext.Button', config);
                     button.action = c.action;
                     button.angular = this;

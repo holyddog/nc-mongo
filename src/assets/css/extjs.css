@@ -42,8 +42,13 @@ legend.x-fieldset-header-default {
 .x-boundlist-item,
 .x-window-body-default,
 .x-window-header-title-default,
+.x-grid-empty,
 .x-grid-rowbody {
     font: 300 13px 'Kanit', sans-serif;
+}
+
+.x-grid-empty {
+    text-align: center;
 }
 
 .x-btn-inner-default-large {
