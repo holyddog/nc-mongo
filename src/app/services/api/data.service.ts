@@ -75,6 +75,7 @@ export class DataService {
                     config.find[i] = params[i];
                 }
             }
+            query.fields = config.fields;
 
             if (config.aggregate) {
                 query.aggregate = config.aggregate;
@@ -151,6 +152,14 @@ export class DataService {
 
             if (config.pk) {                
                 data.pk = config.pk;
+            }
+
+            if (config.pkName) {
+                data.pkName = config.pkName;
+            }
+
+            if (config.defaultLong) {
+                data.defaultLong = config.defaultLong;
             }
 
             if (config.filter) {                

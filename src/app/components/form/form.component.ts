@@ -26,6 +26,7 @@ export class FormComponent implements OnInit {
     @Input() parent: any;
 
     title: string;
+    titleData: any;
     combSeq: number = 1;
     collection: string;
     pk: string;
@@ -92,7 +93,32 @@ export class FormComponent implements OnInit {
         this.loadForm();
     }
 
-    loadForm(): void {
+    setTitle(): void {
+        if (this.titleData) {
+            if (typeof this.titleData == 'string') {
+                this.title = this.titleData;
+            }
+            else {
+                if (this.hasKey) {
+                    if (this.viewMode) {
+                        this.title = this.titleData['view'];
+                    }
+                    else {
+                        this.title = this.titleData['edit'];
+                    }
+                }
+                else {
+                    this.title = this.titleData['add'];
+                }
+            }
+
+            if (!this.isDialog) {
+                this.view.setTitle(this.title, this.formId);
+            }
+        }
+    }
+
+    loadForm(keep: boolean = false): void {
         if (this.formId) {
             this.view.loading = true;
             this.formService.findById(this.formId)
@@ -139,75 +165,67 @@ export class FormComponent implements OnInit {
                         }
                     }
 
-                    if (data.title) {
-                        if (typeof data.title == 'string') {
-                            this.title = data.title;
-                        }
-                        else {
-                            if (this.hasKey) {
-                                if (this.viewMode) {
-                                    this.title = data.title['view'];
-                                }
-                                else {
-                                    this.title = data.title['edit'];
-                                }
-                            }
-                            else {
-                                this.title = data.title['add'];
-                            }
-                        }
-
-                        if (!this.isDialog) {
-                            this.view.setTitle(this.title, this.formId);
-                        }
-                    }
+                    this.titleData = data.title;
+                    this.setTitle();
 
                     this.ds = data.ds;
 
-                    this.prepare(data.data);
-                    this.render()
+                    if (!keep) {
+                        this.prepare(data.data);
+                    }
+
+                    this.render(keep)
                         .then(() => {
+                            this.dsData = {};
                             return this.fetchDataSource();
                         })
                         .then(() => {
-                            return this.fetchRemoteData();
+                            if (keep) {
+                                return Promise.resolve();
+                            }
+                            else {
+                                return this.fetchRemoteData();
+                            }
                         })
                         .then(() => {
                             var ds = this.dsData;
-                            for (let c of this.view.getComponentItems(this.formId)) {
-                                if (c.mapping) {
-                                    var value;
-                                    var dsName = c.mapping.substring(0, c.mapping.indexOf('.'));
-                                    if (ds[dsName]) {
-                                        try {
-                                            eval('value = ds.' + c.mapping + '');
-                                        }
-                                        catch (e) {
-                                            value = null;
-                                        }
 
-                                        if (value || value === 0 || value === false) {
-                                            if (c.type == 'date' || c.type == 'time') {
-                                                c.setValue(new Date(value));
+                            if (true) {
+                                for (let c of this.view.getComponentItems(this.formId)) {
+                                    if (c.mapping) {
+                                        var value;
+                                        var dsName = c.mapping.substring(0, c.mapping.indexOf('.'));
+                                        if (ds[dsName]) {
+                                            try {
+                                                eval('value = ds.' + c.mapping + '');
                                             }
-                                            else if (c.type == 'grid') {
-                                                c.getStore().loadData(value);
+                                            catch (e) {
+                                                value = null;
+                                            }
+
+                                            if (value || value === 0 || value === false) {
+                                                if (c.type == 'date' || c.type == 'time') {
+                                                    c.setValue(new Date(value));
+                                                }
+                                                else if (c.type == 'grid') {
+                                                    c.getStore().loadData(value);
+                                                }
+                                                else {
+                                                    c.setValue(value);
+                                                }
                                             }
                                             else {
-                                                c.setValue(value);
-                                            }
-                                        }
-                                        else {
-                                            if (c.type == 'grid') {
-                                                c.getStore().fireEvent('load');
+                                                if (c.type == 'grid') {
+                                                    c.getStore().fireEvent('load');
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                if (typeof c.getValue == 'function' && typeof c.getValue() == 'string' && c.getValue().startsWith('@')) {
-                                    var newValue = this.fetchParamsValue(c.getValue(), null);
-                                    c.setValue(newValue);
+                                    if (typeof c.getValue == 'function' && typeof c.getValue() == 'string' && c.getValue().startsWith('@')) {
+                                        var newValue = this.fetchParamsValue(c.getValue(), null);
+                                        c.setValue(newValue);
+                                    }
                                 }
                             }
 
@@ -231,6 +249,11 @@ export class FormComponent implements OnInit {
                                         else if (b.action.type == 'select') {
                                             if (!b.icon) {
                                                 b.icon = 'fa-check';
+                                            }
+                                        }
+                                        else if (b.action.type == 'call') {
+                                            if (!b.icon) {
+                                                b.icon = 'fa-exchange-alt';
                                             }
                                         }
                                     }
@@ -258,47 +281,7 @@ export class FormComponent implements OnInit {
                                         iconCls: 'fas ' + b.icon + ' fa-1x',
                                         hidden: hidden,
                                         handler: function () {
-                                            if (this.action.type == 'link') {
-                                                let path: string = this.action.path;
-                                                if (!path) {
-                                                    path = '/form/' + this.action.id;
-                                                }
-                                                this.angular.router.navigate([path]);
-                                            }
-                                            else if (this.action.type == 'open') {
-                                                this.angular.open(this.action);
-                                            }
-                                            else if (this.action.type == 'select') {
-                                                if (this.action.src) {
-                                                    let itemsData: any[] = [];
-                                                    var selectedItems = this.angular.getCmp(this.action.src).getSelectionModel().checkItems;
-                                                    for (var i in selectedItems) {
-                                                        var it = selectedItems[i];
-                                                        let row: any = {};
-                                                        for (let m in this.action.mapping) {
-                                                            var key = this.action.mapping[m].substring(1);
-                                                            row[m] = it[key];
-                                                        }
-                                                        itemsData.push(row);
-                                                    }
-
-                                                    this.angular.getCmp(this.action.dest, this.angular.queryParams.ref).getStore().loadData(itemsData);
-
-                                                    if (this.angular.isDialog) {
-                                                        this.angular.view.closeDialog();
-                                                    }
-                                                    else {
-                                                        this.angular.view.closeForm();
-                                                    }
-
-                                                    // let appForms: any[] = this.angular.parent.appForms;
-                                                    // let parentForm: any = appForms[this.angular.view.forms.length - ((this.angular.isDialog)? 1: 2)];
-                                                    // console.log(parentForm.formId);
-
-                                                    // console.log(this.angular.queryParams['ref']);
-                                                }
-                                            }
-                                            else if (this.action.type == 'save') {
+                                            let doSave = (callback: any = null) => {
                                                 let formValid: boolean = true;
                                                 let validates: string[] = ["text", "textarea", "number", "currency", "combobox", "date", "time", "password"];
                                                 let fields: any = Ext.CacheComponents
@@ -334,25 +317,66 @@ export class FormComponent implements OnInit {
 
                                                 let finishSave = () => {
                                                     this.setDisabled(false);
+                                                    let keys: any = {};
+                                                    for (let r of this.angular.resultData) {
+                                                        if (typeof r.key == 'object') {
+                                                            Object.assign(keys, r.key);
+                                                        }
+                                                    }
                                                     this.angular.resultData = [];
 
-                                                    this.angular.view.alert(this.angular.translate.instant('save_success')).then(() => {
-                                                        if (this.angular.view.forms.length > 1) {
-                                                            if (this.angular.isDialog) {
-                                                                this.angular.view.closeDialog();
+                                                    if (typeof callback != 'function') {
+                                                        this.angular.view.alert(this.angular.translate.instant('save_success')).then(() => {
+                                                            if (this.angular.view.forms.length > 1) {
+                                                                if (this.action.callback) {
+                                                                    let prevForm: any;
+                                                                    if (this.angular.isDialog) {
+                                                                        prevForm = this.angular.view.closeDialog();
+                                                                    }
+                                                                    else {
+                                                                        prevForm = this.angular.view.closeForm();
+                                                                    }
+
+                                                                    if (this.action.callback.filter) {
+                                                                        let callbackGrid: any = this.angular.getCmp(this.action.callback.filter, prevForm.id).getStore();
+                                                                        callbackGrid.loadPage(1);
+                                                                        callbackGrid.load();
+                                                                    }
+                                                                }
+                                                                else {
+                                                                    if (!this.angular.hasKey) {
+                                                                        this.angular.hasKey = true;
+                                                                        this.angular.queryParams = keys;
+                                                                        this.angular.view.clearToolbar(this.angular.formId);
+                                                                        this.angular.loadForm(true);
+                                                                    }
+                                                                }
                                                             }
                                                             else {
-                                                                this.angular.view.closeForm();
+                                                                if (this.action.callback && this.action.callback.id) {
+                                                                    this.angular.router.navigate(['/form/' + this.action.callback.id], {
+                                                                        queryParams: {}
+                                                                    });
+                                                                }
+                                                                else {
+                                                                    if (!this.angular.hasKey) {
+                                                                        this.angular.hasKey = true;
+                                                                        this.angular.queryParams = keys;
+
+                                                                        this.angular.router.navigate([], {
+                                                                            relativeTo: this.angular.activatedRoute,
+                                                                            queryParams: keys
+                                                                        });
+                                                                        this.angular.view.clearToolbar(this.angular.formId);
+                                                                        this.angular.loadForm(true);
+                                                                    }
+                                                                }
                                                             }
-                                                        }
-                                                        else {
-                                                            if (this.action.callback && this.action.callback.id) {
-                                                                this.angular.router.navigate(['/form/' + this.action.callback.id], {
-                                                                    queryParams: {}
-                                                                });
-                                                            }
-                                                        }
-                                                    });
+                                                        });
+                                                    }
+                                                    else {
+                                                        callback();
+                                                    }
                                                 };
 
                                                 let errorList: any[] = [];
@@ -385,11 +409,12 @@ export class FormComponent implements OnInit {
                                                         if (errorList.length == 0) {
                                                             if (typeof this.angular.onAfterSave == 'function') {
                                                                 new Promise<any>((resolve, reject) => {
-                                                                    this.angular.onAfterSave(resolve);
-                                                                })
-                                                                    .then(() => {
-                                                                        finishSave();
-                                                                    });
+                                                                    this.angular.onAfterSave(resolve, reject);
+                                                                }).then(() => {
+                                                                    finishSave();
+                                                                }).catch(() => {
+                                                                    this.setDisabled(false);
+                                                                });
                                                             }
                                                             else {
                                                                 finishSave();
@@ -401,17 +426,19 @@ export class FormComponent implements OnInit {
                                                         }
                                                     }
                                                 };
+
                                                 if (!this.angular.hasKey) {
                                                     if (save.insert && save.insert.length > 0) {
                                                         this.angular.fetchSave(save.insert);
 
                                                         if (typeof this.angular.onBeforeSave == 'function') {
                                                             new Promise<any>((resolve, reject) => {
-                                                                this.angular.onBeforeSave(resolve);
-                                                            })
-                                                                .then(() => {
-                                                                    saveData(0, this.angular.saveData);
-                                                                });
+                                                                this.angular.onBeforeSave(resolve, reject);
+                                                            }).then(() => {
+                                                                saveData(0, this.angular.saveData);
+                                                            }).catch(() => {
+                                                                this.setDisabled(false);
+                                                            });
                                                         }
                                                         else {
                                                             saveData(0, this.angular.saveData);
@@ -427,11 +454,12 @@ export class FormComponent implements OnInit {
 
                                                         if (typeof this.angular.onBeforeSave == 'function') {
                                                             new Promise<any>((resolve, reject) => {
-                                                                this.angular.onBeforeSave(resolve);
-                                                            })
-                                                                .then(() => {
-                                                                    saveData(0, this.angular.saveData);
-                                                                });
+                                                                this.angular.onBeforeSave(resolve, reject);
+                                                            }).then(() => {
+                                                                saveData(0, this.angular.saveData);
+                                                            }).catch(() => {
+                                                                this.setDisabled(false);
+                                                            });
                                                         }
                                                         else {
                                                             saveData(0, this.angular.saveData);
@@ -441,10 +469,177 @@ export class FormComponent implements OnInit {
                                                         finishSave();
                                                     }
                                                 }
+                                            };
+
+                                            var p;
+                                            if (this.action.params) {
+                                                var jsonFind = JSON.parse(JSON.stringify(this.action.params));
+                                                p = this.angular.fetchParams(jsonFind, 'mongo', false, true);
+                                            }
+
+                                            if (this.action.type == 'link') {
+                                                let path: string = this.action.path;
+                                                if (!path) {
+                                                    path = '/form/' + this.action.id;
+                                                }
+                                                this.angular.router.navigate([path], p);
+                                            }
+                                            else if (this.action.type == 'open') {
+                                                this.angular.open(this.action, p);
+                                            }
+                                            else if (this.action.type == 'select') {
+                                                if (this.action.src) {
+                                                    let itemsData: any[] = [];
+                                                    var srcGrid = this.angular.getCmp(this.action.src);
+                                                    var selectedItems = srcGrid.getSelectionModel().checkItems;
+                                                    for (var i in selectedItems) {
+                                                        var it = selectedItems[i];
+                                                        let row: any = {};
+                                                        for (let m in this.action.mapping) {
+                                                            var key = this.action.mapping[m].substring(1);
+                                                            row[m] = it[key];
+                                                        }
+                                                        itemsData.push(row);
+                                                    }
+
+                                                    this.angular.getCmp(srcGrid.ref, this.angular.queryParams.ref).getStore().loadData(itemsData);
+
+                                                    if (this.angular.isDialog) {
+                                                        this.angular.view.closeDialog();
+                                                    }
+                                                    else {
+                                                        this.angular.view.closeForm();
+                                                    }
+
+                                                    // let appForms: any[] = this.angular.parent.appForms;
+                                                    // let parentForm: any = appForms[this.angular.view.forms.length - ((this.angular.isDialog)? 1: 2)];
+                                                    // console.log(parentForm.formId);
+
+                                                    // console.log(this.angular.queryParams['ref']);
+                                                }
+                                            }
+                                            else if (this.action.type == 'call') {
+                                                // console.log(this.calls);
+                                                // this.angular.saveData = [];
+
+                                                let callData: any[] = [];
+                                                this.angular.fetchSave(this.calls, callData);
+
+                                                let results: any[] = [];
+                                                let error: any;
+
+                                                let finishCall = () => {
+                                                    if (error) {
+                                                        this.angular.view.alert(error.message, error.title);
+                                                        return;
+                                                    }
+
+                                                    this.angular.view.alert(this.angular.translate.instant('call_success')).then(() => {
+                                                        // if (this.action.callback && this.action.callback.id) {
+                                                        //     this.angular.router.navigate(['/form/' + this.action.callback.id], {
+                                                        //         queryParams: {}
+                                                        //     });
+                                                        // }
+
+                                                        if (this.angular.view.forms.length > 1) {
+                                                            if (this.action.callback) {
+                                                                let prevForm: any;
+                                                                if (this.angular.isDialog) {
+                                                                    prevForm = this.angular.view.closeDialog();
+                                                                }
+                                                                else {
+                                                                    prevForm = this.angular.view.closeForm();
+                                                                }
+
+                                                                if (this.action.callback.filter) {
+                                                                    let callbackGrid: any = this.angular.getCmp(this.action.callback.filter, prevForm.id).getStore();
+                                                                    callbackGrid.loadPage(1);
+                                                                    callbackGrid.load();
+                                                                }
+                                                            }
+                                                        }
+                                                        else {
+                                                            if (this.action.callback && this.action.callback.id) {
+                                                                this.angular.router.navigate(['/form/' + this.action.callback.id], {
+                                                                    queryParams: {}
+                                                                });
+                                                            }
+                                                        }
+                                                    });
+                                                };
+
+                                                let saveData = (index: number, endPoint: any): void => {
+                                                    if (index < endPoint.length) {
+                                                        if (endPoint[index].type == 'mongo' && this.angular.hasKey) {
+                                                            endPoint[index].method = 'PUT';
+                                                        }
+
+                                                        this.angular.dataService.saveData(endPoint[index])
+                                                            .then(resultData => {
+                                                                results.push(resultData);
+
+                                                                var validate = endPoint[index].validate;
+                                                                if (validate) {
+                                                                    var success = validate.success;
+                                                                    var isSuccess = true;
+                                                                    for (var s in success) {
+                                                                        if (isSuccess) {
+                                                                            if (success[s] != null && success[s].hasOwnProperty("$ne")) {
+                                                                                isSuccess = (success[s] != resultData[s]);
+                                                                            }
+                                                                            else {
+                                                                                isSuccess = (success[s] == resultData[s]);
+                                                                            }
+                                                                        }
+                                                                    }
+
+                                                                    if (!isSuccess) {
+                                                                        var title, message;
+                                                                        if (validate.errorData.title) {
+                                                                            eval('title = resultData.' + validate.errorData.title);
+                                                                        }
+                                                                        eval('message = resultData.' + validate.errorData.message);
+                                                                        throw {
+                                                                            title: title,
+                                                                            message: message
+                                                                        };
+                                                                    }
+                                                                }
+
+                                                                if (index + 1 < endPoint.length) {
+                                                                    this.angular.fetchParams(endPoint[index + 1].params, endPoint[index + 1].type);
+                                                                }
+
+                                                                saveData(index + 1, endPoint);
+                                                            })
+                                                            .catch(err => {
+                                                                error = err;
+                                                                saveData(endPoint.length, endPoint);
+                                                            });
+                                                    }
+                                                    else {
+                                                        finishCall();
+                                                    }
+                                                };
+
+                                                if (this.action.noSave == true) {
+                                                    saveData(0, callData);
+                                                }
+                                                else {
+                                                    doSave(() => {
+                                                        saveData(0, callData);
+                                                    });
+                                                }
+                                            }
+                                            else if (this.action.type == 'save') {
+                                                doSave();
                                             }
                                         }
                                     });
                                     button.action = b.action;
+                                    if (b.action) {
+                                        button.calls = b.action.calls;
+                                    }
                                     button.angular = this;
 
                                     button.name = b.name;
@@ -466,31 +661,6 @@ export class FormComponent implements OnInit {
 
                             if (typeof this.onLoad == 'function') {
                                 this.onLoad();
-                            }
-
-                            if (this.hasKey) {
-                                setTimeout(() => {
-                                    // this.dataService.findByKey(this.key, this.collection, this.pk)
-                                    //     .then(resultData => {
-                                    //         for (let d in resultData) {
-                                    //             var cmp = Ext.ComponentQuery.query('[name=' + d + ']');
-                                    //             if (cmp && cmp.length) {
-                                    //                 var value = resultData[d];
-
-                                    //                 if (cmp[0].dataMapping) {
-                                    //                     let mappings: string[] = cmp[0].dataMapping.split('.');
-                                    //                     if (mappings.length > 1) {
-                                    //                         for (var i = 1; i < mappings.length; i++) {
-                                    //                             value = value[mappings[i]];
-                                    //                         }
-                                    //                     }
-                                    //                 }
-
-                                    //                 cmp[0].setValue(value);
-                                    //             }
-                                    //         }
-                                    //     });
-                                }, 0);
                             }
                         });
                 })
@@ -522,20 +692,46 @@ export class FormComponent implements OnInit {
     }
 
     open(action: any, params: any = {}): void {
-        params.ref = this.formId;
-
-        if (!action.dialog) {
-            this.view.addForm({
-                id: action.id,
-                params: params
-            });
+        if (!action.url) {
+            params.ref = this.formId;
+            if (!action.dialog) {
+                this.view.addForm({
+                    id: action.id,
+                    params: params
+                });
+            }
+            else {
+                this.view.addDialog({
+                    id: action.id,
+                    size: action.dialog.size,
+                    params: params
+                });
+            }
         }
         else {
-            this.view.addDialog({
-                id: action.id,
-                size: action.dialog.size,
-                params: params
-            });
+            let serialize = (obj, prefix = null) => {
+                var str = [], p;
+                for (p in obj) {
+                    if (obj.hasOwnProperty(p)) {
+                        var k = prefix ? prefix + "[" + p + "]" : p,
+                            v = obj[p];
+                        str.push((v !== null && typeof v === "object") ?
+                            serialize(v, k) :
+                            encodeURIComponent(k) + "=" + encodeURIComponent(v));
+                    }
+                }
+                return str.join("&");
+            }
+
+            let url: string = action.url;
+            if (params) {
+                url += '?' + serialize(params).replace(/&$/, '');
+            }
+
+            var win = window.open('', '_blank');
+            setTimeout(() => {
+                win.location.href = url;
+            }, 0);
         }
     }
 
@@ -553,7 +749,6 @@ export class FormComponent implements OnInit {
                     if (index < this.ds.length) {
                         var ds = this.ds[index];
                         var config = ds.api || ds.mongo || ds.sql;
-
                         var valid = true;
 
                         if (config.aggregate) {
@@ -571,6 +766,20 @@ export class FormComponent implements OnInit {
 
                         if (Ext.Object.isEmpty(params)) {
                             valid = false;
+                        }
+
+                        if (valid) {
+                            this.getData(config, params)
+                                .then(resultData => {
+                                    this.dsData[ds.name] = resultData;
+                                    fetch(index + 1);
+                                })
+                                .catch(err => {
+                                    fetch(index + 1);
+                                });
+                        }
+                        else {
+                            fetch(index + 1);
                         }
 
                         // if (config.params) {
@@ -602,20 +811,6 @@ export class FormComponent implements OnInit {
                         //         }
                         //     }
                         // }
-
-                        if (valid) {
-                            this.getData(config, params)
-                                .then(resultData => {
-                                    this.dsData[ds.name] = resultData;
-                                    fetch(index + 1);
-                                })
-                                .catch(err => {
-                                    fetch(index + 1);
-                                });
-                        }
-                        else {
-                            fetch(index + 1);
-                        }
                     }
                     else {
                         this.ds = [];
@@ -647,7 +842,11 @@ export class FormComponent implements OnInit {
         return value;
     }
 
-    fetchParamsValue(pValue: any, mode: string, filter: boolean = false) {
+    fetchParamsValue(pValue: any, mode: string, filter: boolean = false, record: any = null) {
+        if (pValue == undefined || pValue == null) {
+            return null;
+        }
+
         var paramsValue = null;
         if (typeof pValue == 'object' && pValue.name) {
             var gridData = [];
@@ -668,6 +867,10 @@ export class FormComponent implements OnInit {
                     paramsValue = gridData;
                 }
             }
+        }
+        else if (record != null && pValue.toString().startsWith('@rec')) {
+            var name = pValue.replace('@rec.', '');
+            paramsValue = record.get(name);
         }
         else if (pValue.toString().startsWith('@params')) {
             var name = pValue.replace('@params.', '');
@@ -741,11 +944,11 @@ export class FormComponent implements OnInit {
                 }
                 else if (o.type == 'daterange' && value != null) {
                     if (value[0]) {
-                        value[0] = Ext.Date.format(value[0], 'Y-m-d\\T00:00:00.000\\Z');
+                        value[0] = Ext.Date.format(value[0], 'Y-m-d\\T00:00:00.000+07:00');
                     }
                     if (value[1]) {
                         value[1] = Ext.Date.add(value[1], Ext.Date.DAY, 1);
-                        value[1] = Ext.Date.format(value[1], 'Y-m-d\\T00:00:00.000\\Z');
+                        value[1] = Ext.Date.format(value[1], 'Y-m-d\\T00:00:00.000+07:00');
                     }
 
                     let expr: any = {
@@ -767,19 +970,27 @@ export class FormComponent implements OnInit {
                 }
                 else if (value instanceof Date) {
                     if (mode == 'mongo') {
-                        if (filter) {
+                        if (filter && !o.multiDays) {
                             value = {
-                                "$gte": Ext.Date.format(value, 'Y-m-d\\T00:00:00.000\\Z'),
-                                "$lt": Ext.Date.format(Ext.Date.add(value, Ext.Date.DAY, 1), 'Y-m-d\\T00:00:00.000\\Z')
+                                "$gte": Ext.Date.format(value, 'Y-m-d\\T00:00:00.000+07:00'),
+                                "$lt": Ext.Date.format(Ext.Date.add(value, Ext.Date.DAY, 1), 'Y-m-d\\T00:00:00.000+07:00')
                             };
                         }
                         else {
-                            value = Ext.Date.format(value, 'Y-m-d\\T00:00:00.000\\Z');
+                            if (o.addDays) {
+                                value = Ext.Date.add(value, Ext.Date.DAY, o.addDays);
+                            }
+                            value = Ext.Date.format(value, 'Y-m-d\\T00:00:00.000+07:00');
                         }
                     }
                     else if (mode == 'api') {
                         var tz = (new Date()).getTimezoneOffset() * 60000;
                         value = new Date(value.getTime() - tz).toISOString().slice(0, -1);
+                    }
+                }
+                else if (o.dataType) {
+                    if (o.dataType == "long") {
+                        value = "NumberLong(" + value + ")";
                     }
                 }
 
@@ -835,7 +1046,70 @@ export class FormComponent implements OnInit {
         return valid;
     }
 
-    fetchParams(pp: any, mode: string, filter: boolean = false): any {
+    fetchGrid(gridName: string, fields: any): any[] {
+        var o = this.getCmp(gridName);
+        if (o) {
+            let gridData = [];
+            var store = o.getStore();
+            for (var j = 0; j < store.getCount(); j++) {
+                var row = store.getAt(j);
+                var dataRow = {};
+                for (let i in fields) {
+                    if (fields[i] != null && typeof fields[i] == 'object') {
+                        if (fields[i].name) {
+                            var getValue = (e, field) => {
+                                if (typeof field == 'object' && field.type) {
+                                    let value: any = Object.assign({}, field);
+                                    var key = value.value.substring(1);
+                                    value.value = e[key];
+                                    return value;
+                                }
+                                return e[field.substring(1)];
+                            };
+
+                            let embed: any = row.get(fields[i].name);
+                            if (embed instanceof Array) {
+                                dataRow[i] = [];
+                                for (let e of embed) {
+                                    let rec: any = {};
+                                    for (let f in fields[i].fields) {
+                                        rec[f] = getValue(e, fields[i].fields[f]);
+                                    }
+                                    dataRow[i].push(rec);
+                                }
+                            }
+                            else if (embed instanceof Object) {
+                                dataRow[i] = {};
+                                for (let f in fields[i].fields) {
+                                    dataRow[i][f] = getValue(embed, fields[i].fields[f]);
+                                }
+                            }
+                        }
+                        else if (fields[i].type) {
+                            let value: any = Object.assign({}, fields[i]);
+                            if (typeof fields[i].value == 'string' && fields[i].value.startsWith('@')) {
+                                var key = fields[i].value.substring(1);
+                                value.value = row.get(key);
+                            }
+                            dataRow[i] = value;
+                        }
+                    }
+                    else {
+                        var key = fields[i].substring(1);
+                        dataRow[i] = row.get(key);
+                    }
+                }
+                gridData.push(dataRow);
+            }
+
+            if (gridData.length > 0) {
+                return gridData;
+            }
+        }
+        return null;
+    }
+
+    fetchParams(pp: any, mode: string, filter: boolean = false, redirect: boolean = false): any {
         var data = {
             params: pp
         };
@@ -846,20 +1120,57 @@ export class FormComponent implements OnInit {
             var fetch = (data, parent = null, key = null) => {
                 if (data) {
                     for (let i in data) {
-                        if (typeof data[i] == 'object') {
+                        if (typeof data[i] == 'object' && data[i] != null) {
+                            if (data[i] && data[i].type == 'grid' && data[i].name) {
+                                data[i] = this.fetchGrid(data[i].name, data[i].fields);
+                            }
                             fetch(data[i], data, i);
                         } else {
                             var resValue = this.fetchParamsValue(data[i], 'mongo', filter);
                             if (resValue == null) {
                                 if (this.getFormMode() == 'edit') {
-                                    if (parent && parent[key])
-                                        parent[key] = null;
-                                    else
+                                    if (parent && parent[key]) {
+                                        // parent[key] = null;
+
+                                        if (filter) {
+                                            parent[key] = null;
+                                        }
+                                        else if (redirect) {
+                                            if (parent instanceof Array) {
+                                                parent[key] = null;
+                                            }
+                                        }
+                                        else if (!(parent instanceof Array)) {
+                                            parent[key] = null;
+                                        }
+                                    }
+                                    else {
                                         data[i] = null;
+                                    }
                                 }
                                 else {
-                                    if (parent && parent[key])
-                                        delete parent[key];
+                                    if (parent && parent[key]) {
+                                        // if (!(parent instanceof Array)) {
+                                        //     delete parent[key];
+                                        // }
+
+                                        if (filter) {
+                                            delete parent[key];
+                                        }
+                                        else if (redirect) {
+                                            if (parent instanceof Array) {
+                                                delete parent[key];
+                                            }
+                                        }
+                                        else if (!(parent instanceof Array)) {
+                                            delete parent[key];
+                                        }
+
+                                        // if (parent instanceof Array) {
+                                        //     parent = parent.filter(o => o != undefined);
+                                        //     // parent.splice(parseInt(key), 1);
+                                        // }
+                                    }
                                     else
                                         delete data[i];
                                 }
@@ -872,6 +1183,20 @@ export class FormComponent implements OnInit {
                 }
             }
             fetch(data.params);
+
+            var clean = (data, parent = null, key = null) => {
+                if (data) {
+                    for (let i in data) {
+                        if (typeof data[i] == 'object' && data[i] != null) {
+                            if (data[i] instanceof Array) {
+                                data[i] = data[i].filter(o => o != undefined);
+                            }
+                            fetch(data[i], data, i);
+                        }
+                    }
+                }
+            }
+            clean(data.params);
 
             return data.params;
         }
@@ -907,7 +1232,7 @@ export class FormComponent implements OnInit {
         return params;
     }
 
-    fetchSave(saves: any[]): void {
+    fetchSave(saves: any[], outputs: any[] = null): void {
         for (let config of saves) {
             var data = config.api || config.mongo || config.sql;
             var mode = '';
@@ -933,6 +1258,7 @@ export class FormComponent implements OnInit {
             if (config.api) {
                 info.type = "api";
                 info.url = config.api.url;
+                info.validate = config.api.validate;
                 if (config.api.method) {
                     info.method = config.api.method;
                 }
@@ -947,11 +1273,24 @@ export class FormComponent implements OnInit {
                 if (config.mongo.pk) {
                     info.pk = config.mongo.pk;
                 }
+                if (config.mongo.pkName) {
+                    info.pkName = config.mongo.pkName;
+                }
+                if (config.mongo.defaultLong) {
+                    info.defaultLong = config.mongo.defaultLong;
+                }
             }
 
-            this.saveData.push(Object.assign({
-                params: newParams
-            }, info));
+            if (!outputs) {
+                this.saveData.push(Object.assign({
+                    params: newParams
+                }, info));
+            }
+            else {
+                outputs.push(Object.assign({
+                    params: newParams
+                }, info));
+            }
         }
     }
 
@@ -1023,135 +1362,151 @@ export class FormComponent implements OnInit {
         this.formData = data;
     }
 
-    render(): Promise<any> {
+    render(keep: boolean = false): Promise<any> {
         return new Promise<any>((resolve, reject) => {
-            setTimeout(() => {
-                if (!this.formData)
-                    return;
-
-                var fetchRows = (rows: any[]) => {
-                    if (!rows) {
+            if (keep) {
+                setTimeout(() => {
+                    resolve();
+                }, 0);
+            }
+            else {
+                setTimeout(() => {
+                    if (!this.formData)
                         return;
-                    }
 
-                    for (let r of rows) {
-                        if (r.cols) {
-                            for (let c of r.cols) {
-                                if (!c.config) {
-                                    c.config = {};
-                                }
-
-                                if (c.ws && c.ws.length) {
-                                    if (c.ws.find(o => o == this.authen.ws.wsp_id) == undefined) {
-                                        c.cls += ' d-none';
-                                    }
-                                }
-
-                                let config: any = c.config;
-                                config.renderTo = Ext.get(c.id);
-                                config.labelWidth = 140;
-
-                                let cmp: any = this.component(c);
-                                cmp.type = c.type;
-
-                                if (cmp.xtype) {
-                                    if (!cmp.name && c.name) {
-                                        cmp.name = c.name;
-                                    }
-                                    cmp.data = {};
-
-                                    if (c.visible) {
-                                        cmp.setVisible(this.getVisible(c.visible));
-                                    }
-                                    if (c.disable) {
-                                        cmp.setDisabled(this.getVisible(c.disable));
-                                    }
-
-                                    if (c.query) {
-                                        cmp.data.query = c.query;
-                                    }
-                                    if (c.paging) {
-                                        var dataConfig = c.paging.mongo || c.paging.api || c.paging.sql;
-                                        if (c.paging.mongo) {
-                                            cmp.data.mode = 'mongo';
-                                        }
-                                        else if (c.paging.api) {
-                                            cmp.data.mode = 'api';
-                                        }
-
-                                        if (dataConfig)
-                                            cmp.data.config = dataConfig;
-                                    }
-                                    if (c.json == true) {
-                                        cmp.json = true;
-                                    }
-                                    if (c.mapping) {
-                                        cmp.mapping = c.mapping;
-                                    }
-
-                                    if ((cmp.xtype == 'combo' || cmp.xtype == 'grid') && c.data) {
-                                        if (c.links) {
-                                            cmp.links = c.links;
-                                        }
-
-                                        if (c.data.api) {
-                                            cmp.api = c.data.api;
-                                            this.remoteData.push(cmp.id);
-                                        }
-                                        else if (c.data.mongo) {
-                                            cmp.mongo = c.data.mongo;
-                                            this.remoteData.push(cmp.id);
-                                        }
-                                    }
-
-                                    if (c.saveFields) {
-                                        cmp.saveFields = c.saveFields;
-                                    }
-
-                                    if (c.mapping) {
-                                        cmp.dataMapping = c.mapping;
-                                    }
-
-                                    this.view.addComponent(this.formId, cmp);
-                                }
-                            }
+                    var fetchRows = (rows: any[]) => {
+                        if (!rows) {
+                            return;
                         }
-                    }
-                };
 
-                let fields: any[] = [];
-                for (let i of this.formData) {
-                    if (i.container) {
-                        for (let con of i.container) {
-                            if (con.rows && con.rows.length > 0) {
-                                fetchRows(con.rows);
-                            }
-                            else if (con.fieldset) {
-                                fetchRows(con.fieldset.rows);
-                            }
-                            else if (con.tab && con.tab.items && con.tab.items.length > 0) {
-                                for (let t of con.tab.items) {
-                                    if (t.container) {
-                                        for (let tcon of t.container) {
-                                            if (tcon.rows && tcon.rows.length) {
-                                                fetchRows(tcon.rows);
+                        for (let r of rows) {
+                            if (r.cols) {
+                                for (let c of r.cols) {
+                                    if (!c.config) {
+                                        c.config = {};
+                                    }
+
+                                    if (c.ws && c.ws.length) {
+                                        if (c.ws.find(o => o == this.authen.ws.wsp_id) == undefined) {
+                                            c.cls += ' d-none';
+                                        }
+                                    }
+
+                                    let config: any = c.config;
+                                    config.renderTo = Ext.get(c.id);
+                                    config.labelWidth = 140;
+
+                                    let cmp: any = this.component(c);
+                                    cmp.type = c.type;
+                                    cmp.dataType = c.dataType;
+                                    cmp.multiDays = c.multiDays;
+                                    cmp.addDays = c.addDays;
+
+                                    if (cmp.xtype) {
+                                        if (!cmp.name && c.name) {
+                                            cmp.name = c.name;
+                                        }
+                                        cmp.data = {};
+
+                                        if (c.visible) {
+                                            cmp.setVisible(this.getVisible(c.visible));
+                                        }
+                                        if (c.disable) {
+                                            cmp.setDisabled(this.getVisible(c.disable));
+                                        }
+
+                                        if (c.query) {
+                                            cmp.data.query = c.query;
+                                        }
+                                        if (c.paging) {
+                                            var dataConfig = c.paging.mongo || c.paging.api || c.paging.sql;
+                                            if (c.paging.mongo) {
+                                                cmp.data.mode = 'mongo';
                                             }
-                                            else if (tcon.fieldset) {
-                                                fetchRows(tcon.fieldset.rows);
+                                            else if (c.paging.api) {
+                                                cmp.data.mode = 'api';
+                                            }
+
+                                            if (dataConfig)
+                                                cmp.data.config = dataConfig;
+                                        }
+                                        if (c.json == true) {
+                                            cmp.json = true;
+                                        }
+                                        if (c.mapping) {
+                                            cmp.mapping = c.mapping;
+                                        }
+
+                                        if ((cmp.xtype == 'combo' || cmp.xtype == 'grid') && c.data) {
+                                            if (c.links) {
+                                                cmp.links = c.links;
+                                            }
+
+                                            if (c.data.api) {
+                                                cmp.api = c.data.api;
+                                                this.remoteData.push(cmp.id);
+                                            }
+                                            else if (c.data.mongo) {
+                                                cmp.mongo = c.data.mongo;
+                                                this.remoteData.push(cmp.id);
                                             }
                                         }
+
+                                        if (c.saveFields) {
+                                            cmp.saveFields = c.saveFields;
+                                        }
+                                        if (c.ref) {
+                                            cmp.ref = c.ref;
+                                        }
+                                        if (c.pk) {
+                                            cmp.pk = c.pk;
+                                        }
+
+                                        if (c.mapping) {
+                                            cmp.dataMapping = c.mapping;
+                                        }
+
+                                        this.view.addComponent(this.formId, cmp);
                                     }
                                 }
                             }
                         }
+                    };
+
+                    let fields: any[] = [];
+                    for (let i of this.formData) {
+                        if (i.container) {
+                            for (let con of i.container) {
+                                if (con.rows && con.rows.length > 0) {
+                                    fetchRows(con.rows);
+                                }
+                                else if (con.fieldset) {
+                                    fetchRows(con.fieldset.rows);
+                                }
+                                else if (con.tab && con.tab.items && con.tab.items.length > 0) {
+                                    for (let t of con.tab.items) {
+                                        if (t.container) {
+                                            for (let tcon of t.container) {
+                                                if (tcon.rows && tcon.rows.length) {
+                                                    fetchRows(tcon.rows);
+                                                }
+                                                else if (tcon.fieldset) {
+                                                    fetchRows(tcon.fieldset.rows);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-                }
-                resolve();
-            }, 0);
+                    resolve();
+                }, 0);
+            }
         });
     }
 
-    getVisible(visible: any): boolean {
+    getVisible(visible: any, record: any = null): boolean {
         let invisible = false;
         for (let m of this.formModes) {
             if (visible[m] == 0) {
@@ -1169,6 +1524,43 @@ export class FormComponent implements OnInit {
         if (visible[this.getFormMode()] == 0) {
             return false;
         }
+
+        if (typeof visible[this.getFormMode()] == 'object') {
+            let vcheck: any = visible[this.getFormMode()];
+            let vcount: number = 0;
+            let ccount: number = 0;
+            for (let i in vcheck) {
+                var baseValue = this.fetchParamsValue(i, null, true, record);
+
+                if (vcheck[i] != null && typeof vcheck[i] == 'object') {
+                    if (vcheck[i].hasOwnProperty("$ne")) {
+                        if ((baseValue != vcheck[i]["$ne"]) == true) {
+                            vcount++;
+                        }
+                    }
+                    else if (vcheck[i].hasOwnProperty("$gt")) {
+                        if ((baseValue > vcheck[i]["$gt"]) == true) {
+                            vcount++;
+                        }
+                    }
+                    else if (vcheck[i].hasOwnProperty("$lt")) {
+                        if ((baseValue < vcheck[i]["$lt"]) == true) {
+                            vcount++;
+                        }
+                    }
+                    // console.log(i + " : " + (baseValue != vcheck[i]["$ne"]));
+                }
+                else {
+                    if (baseValue == vcheck[i]) {
+                        vcount++;
+                    }
+                    // console.log(i + " : " + (baseValue == vcheck[i]));
+                }
+                ccount++;
+            }
+            return vcount == ccount;
+        }
+
         return true;
     }
 
@@ -1288,20 +1680,27 @@ export class FormComponent implements OnInit {
         });
     }
 
-    navigateAction(action: any, recordData: any = null): void {
+    navigateAction(action: any, record: any = null, grid: any = null): void {
         var p = {};
         if (action.params) {
-            for (let i in action.params) {
-                var value = action.params[i];
-                if (recordData) {
-                    if (typeof value == 'string' && value.startsWith('@')) {
-                        eval('value = recordData.' + value.substring(1));
+            if (record) {                
+                var recordData = record.data;
+                for (let i in action.params) {
+                    var value = action.params[i];
+                    if (recordData) {
+                        if (typeof value == 'string' && value.startsWith('@')) {
+                            eval('value = recordData.' + value.substring(1));
+                        }
+                        p[i] = value;
                     }
-                    p[i] = value;
+                    else {
+                        p[i] = this.fetchParamsValue(value, null);
+                    }
                 }
-                else {
-                    p[i] = this.fetchParamsValue(value, null);
-                }
+            }
+            else {
+                var jsonFind = JSON.parse(JSON.stringify(action.params));
+                p = this.fetchParams(jsonFind, 'mongo', false, true);
             }
         }
 
@@ -1317,6 +1716,9 @@ export class FormComponent implements OnInit {
                 queryParams: p
             })
             // this.open(column.action, p);
+        }
+        else if (action.type == 'delete' && grid) {
+            grid.getStore().remove(record);
         }
     }
 
@@ -1353,16 +1755,20 @@ export class FormComponent implements OnInit {
                 else {
                     var column;
 
-                    if (col.visible) {
-                        col.config.hidden = !this.getVisible(col.visible);
+                    // if (col.visible) {
+                    //     col.config.hidden = !this.getVisible(col.visible);
+                    // }
+
+                    if (this.viewMode && col.action && col.action.type == 'delete') {
+                        col.config.hidden = true;
                     }
 
                     if (col.config.renderer) {
                         eval('col.config.renderer = ' + col.config.renderer);
                     }
                     else if (col.mapping || col.action || col.defaultValue) {
-                        col.config.renderer = function (value, metaData, record, rowIndex, colIndex) {
-                            var column = this.getColumns()[colIndex];
+                        col.config.renderer = (value, metaData, record, rowIndex, colIndex) => {
+                            var column = metaData.column;
                             if (!value && column.defaultValue) {
                                 value = column.defaultValue;
                             }
@@ -1383,8 +1789,21 @@ export class FormComponent implements OnInit {
                                 }
 
                                 if (column.action) {
-                                    if (column.action.type == 'open' || column.action.type == 'link') {
-                                        return `<a style="text-decoration: underline" href="javascript:void(0)">${value}</a>`;
+                                    let style: string = "";
+
+                                    if (col.visible) {
+                                        if (!this.getVisible(col.visible, record)) {
+                                            style = "opacity: 0; pointer-events: none";
+                                        }
+                                    }
+                                    else if (col.disable) {
+                                        if (this.getVisible(col.disable, record)) {
+                                            style = "opacity: .4; pointer-events: none";
+                                        }
+                                    }
+
+                                    if (column.action.type == 'open' || column.action.type == 'link' || column.action.type == 'delete') {
+                                        return `<a data-inactive="${style.length > 0}" style="text-decoration: underline; ${style}" href="javascript:void(0)">${value}</a>`;
                                     }
                                 }
                             }
@@ -1466,7 +1885,7 @@ export class FormComponent implements OnInit {
                 cellclick: (o, td, cellIndex, record, tr, rowIndex, e) => {
                     if (e.target.tagName == 'A' || e.target.tagName == 'I') {
                         var column = o.ownerGrid.getColumns()[cellIndex];
-                        this.navigateAction(column.action, record.data);
+                        this.navigateAction(column.action, record, o.ownerGrid);
                     }
                 },
                 resize: function (e) {
@@ -1557,14 +1976,14 @@ export class FormComponent implements OnInit {
                             if (!sm.checkItems) {
                                 sm.checkItems = [];
                             }
-                            sm.checkItems[rec.get('id')] = rec.data;
+                            sm.checkItems[rec.get(sm.pk)] = rec.data;
                         },
                         deselect: function (sm, rec) {
                             if (!sm.checkItems) {
                                 sm.checkItems = [];
                             }
-                            if (sm.checkItems[rec.get('id')]) {
-                                delete sm.checkItems[rec.get('id')];
+                            if (sm.checkItems[rec.get(sm.pk)]) {
+                                delete sm.checkItems[rec.get(sm.pk)];
                             }
                         }
                     }
@@ -1806,7 +2225,8 @@ export class FormComponent implements OnInit {
                 proxy.mode = 'mongo';
 
                 proxy.extraParams = {
-                    collection: dataConfig.collection
+                    collection: dataConfig.collection,
+                    fields: dataConfig.fields
                 }
 
                 if (dataConfig.find) {
@@ -1856,18 +2276,34 @@ export class FormComponent implements OnInit {
             // }
 
             let listeners: any = {
-                load: function (store) {
+                load: (store) => {
                     setTimeout(() => {
                         window.dispatchEvent(new Event('resize'));
                     }, 0);
 
                     var sm = store.ownerGrid.getSelectionModel();
-                    if (sm && sm.checkItems) {
-                        store.each(function (item) {
-                            if (sm.checkItems[item.get('id')]) {
-                                sm.select(item, true);
-                            }
-                        });
+                    if (sm && store.ownerGrid.ref && this.queryParams.ref) {
+                        sm.pk = "_id";
+                        if (store.ownerGrid.pk) {
+                            sm.pk = store.ownerGrid.pk;
+                        }
+
+                        if (!sm.checkItems) {
+                            sm.checkItems = [];
+                            var refGrid = this.getCmp(store.ownerGrid.ref, this.queryParams.ref);
+                            let gridStore: any = refGrid.getStore();
+                            gridStore.each(function (item) {
+                                sm.checkItems[item.get(sm.pk)] = true;
+                            });
+                        }
+
+                        if (sm.checkItems.length > 0) {
+                            store.each(function (item) {
+                                if (sm.checkItems[item.get(sm.pk)]) {
+                                    sm.select(item, true);
+                                }
+                            });
+                        }
                     }
 
                     // if (!store.checkedItems) store.checkedItems = [];
@@ -2109,6 +2545,9 @@ export class FormComponent implements OnInit {
                 if (this.viewMode) {
                     config.fieldCls = 'ext-form-readonly';
                 }
+                if (config.value == "@DATE") {
+                    config.value = new Date();
+                }
                 return Ext.create('Ext.form.field.Date', config);
                 // break;
             }
@@ -2343,11 +2782,11 @@ export class FormComponent implements OnInit {
                             //             let fieldName: string = cmp.mapping || cmp.name;
                             //             if (cmp.type == 'daterange') {
                             //                 if (value[0]) {
-                            //                     value[0] = Ext.Date.format(value[0], 'Y-m-d\\T00:00:00.000\\Z');
+                            //                     value[0] = Ext.Date.format(value[0], 'Y-m-d\\T00:00:00.000');
                             //                 }
                             //                 if (value[1]) {
                             //                     value[1] = Ext.Date.add(value[1], Ext.Date.DAY, 1);
-                            //                     value[1] = Ext.Date.format(value[1], 'Y-m-d\\T00:00:00.000\\Z');
+                            //                     value[1] = Ext.Date.format(value[1], 'Y-m-d\\T00:00:00.000');
                             //                 }
 
                             //                 let expr: any = {
@@ -2372,8 +2811,8 @@ export class FormComponent implements OnInit {
                             //             else if (cmp.type == 'date') {
                             //                 let query: any = {};
                             //                 query[fieldName] = {
-                            //                     "$gte": Ext.Date.format(value, 'Y-m-d\\T00:00:00.000\\Z'),
-                            //                     "$lt": Ext.Date.format(Ext.Date.add(value, Ext.Date.DAY, 1), 'Y-m-d\\T00:00:00.000\\Z')
+                            //                     "$gte": Ext.Date.format(value, 'Y-m-d\\T00:00:00.000'),
+                            //                     "$lt": Ext.Date.format(Ext.Date.add(value, Ext.Date.DAY, 1), 'Y-m-d\\T00:00:00.000')
                             //                 };
                             //                 Object.assign(filterParams, query);
                             //             }
@@ -2421,11 +2860,11 @@ export class FormComponent implements OnInit {
                                 //             let fieldName: string = cmp.mapping || cmp.name;
                                 //             if (cmp.type == 'daterange') {
                                 //                 if (value[0]) {
-                                //                     value[0] = Ext.Date.format(value[0], 'Y-m-d\\T00:00:00.000\\Z');
+                                //                     value[0] = Ext.Date.format(value[0], 'Y-m-d\\T00:00:00.000+07:00');
                                 //                 }
                                 //                 if (value[1]) {
                                 //                     value[1] = Ext.Date.add(value[1], Ext.Date.DAY, 1);
-                                //                     value[1] = Ext.Date.format(value[1], 'Y-m-d\\T00:00:00.000\\Z');
+                                //                     value[1] = Ext.Date.format(value[1], 'Y-m-d\\T00:00:00.000+07:00');
                                 //                 }
 
                                 //                 let expr: any = {
@@ -2450,8 +2889,8 @@ export class FormComponent implements OnInit {
                                 //             else if (cmp.type == 'date') {
                                 //                 let query: any = {};
                                 //                 query[fieldName] = {
-                                //                     "$gte": Ext.Date.format(value, 'Y-m-d\\T00:00:00.000\\Z'),
-                                //                     "$lt": Ext.Date.format(Ext.Date.add(value, Ext.Date.DAY, 1), 'Y-m-d\\T00:00:00.000\\Z')
+                                //                     "$gte": Ext.Date.format(value, 'Y-m-d\\T00:00:00.000+07:00'),
+                                //                     "$lt": Ext.Date.format(Ext.Date.add(value, Ext.Date.DAY, 1), 'Y-m-d\\T00:00:00.000+07:00')
                                 //                 };
                                 //                 Object.assign(filterParams, query);
                                 //             }
@@ -2719,7 +3158,8 @@ export class FormComponent implements OnInit {
                         return values;
                     }
                     else {
-                        return this.items.get(1).value;
+                        //return this.items.get(1).value;
+                        return null;
                     }
                 };
                 cmp.setValue = function (values) {

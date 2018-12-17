@@ -89,6 +89,7 @@ export class ViewService {
         }
 
         this.title = this.forms[this.forms.length - 1].title;
+        return this.forms[this.forms.length - 1];
     }
 
     closeDialog(): void {
@@ -106,6 +107,8 @@ export class ViewService {
         }
         Ext.CacheComponents.pop();
         this.dialogs.pop();
+
+        return this.dialogs[this.dialogs.length - 1];
     }
 
     clearDialogs(): void {
@@ -209,9 +212,9 @@ export class ViewService {
         Ext.CacheComponents = [];
     }
 
-    clearToolbar(): void {
+    clearToolbar(id: string): void {
         Ext.CacheComponents.map(c => {
-            if (c.tbar) {
+            if (c.id == id && c.tbar) {
                 c.tbar.destroy();
             }
         });
