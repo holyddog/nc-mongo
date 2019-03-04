@@ -1,8 +1,8 @@
 <ng-container *ngIf="authenService.ws != null">
     <div style="max-width: 480px" class="paper">
-        <div class="d-flex v-center h-center mb-4 pt-4" style="height: 250px">
-            <img class="mw-100 mh-100" [src]="config.FileUrl + authenService.ws.data.logo">
-        </div>
+        <!-- <div class="d-flex v-center h-center mb-4 pt-4" style="height: 250px">
+            <img class="mw-100 mh-100" src="./assets/images/logo.png">
+        </div> -->
         <app-form [formId]="'login'" class="clear-form"></app-form>
     </div>
     <footer class="pt-4">© {{authenService.ws.wsp_name}} {{year}}</footer>

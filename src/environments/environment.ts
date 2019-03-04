@@ -7,11 +7,13 @@ export const environment = {
 declare var AppConfig: any;
 export const Config = {
     AppName: 'NC BOM (Development)',
+    WSP: AppConfig.WSP,
     PageSize: 10,
 
     ServiceUrl: AppConfig.ServiceUrl,
     AuthenUrl: AppConfig.AuthenUrl,
     FileUrl: AppConfig.FileUrl,
+    ExternalFileUrl: AppConfig.ExternalFileUrl,
     ImageUrl: 'http://27.254.138.120:3203/files',
 
     StoragePrefix: 'ncMongo-'

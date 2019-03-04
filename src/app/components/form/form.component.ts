@@ -1001,9 +1001,14 @@ export class FormComponent implements OnInit {
             }
         }
         else if (/!?(@\w+)/i.test(pValue.toString())) {
+            var keyParams = "";
+            if (pValue.indexOf('@params.') > -1) {
+                pValue = pValue.replace('@params.', '@params');
+            }
             var expr = pValue.toString().split(/!?(@\w+)/i).filter(o => o.indexOf('@') > -1)[0];
-            if (this.fetchParamsValue(expr, 'mongo') != null) {
-                paramsValue = pValue.replace(expr, this.fetchParamsValue(expr, 'mongo'));
+            var exprValue = this.fetchParamsValue(expr.replace('@params', '@params.'), 'mongo');
+            if (exprValue != null) {
+                paramsValue = pValue.replace(expr, exprValue);
             }
         }
         else {
@@ -1766,7 +1771,7 @@ export class FormComponent implements OnInit {
                     if (col.config.renderer) {
                         eval('col.config.renderer = ' + col.config.renderer);
                     }
-                    else if (col.mapping || col.action || col.defaultValue) {
+                    else if (col.mapping || col.action || col.defaultValue || col.type == 'image') {
                         col.config.renderer = (value, metaData, record, rowIndex, colIndex) => {
                             var column = metaData.column;
                             if (!value && column.defaultValue) {
@@ -1786,6 +1791,9 @@ export class FormComponent implements OnInit {
 
                                 if (column.type == 'currency') {
                                     value = Ext.util.Format.numberRenderer('0,0.00')(value);
+                                }
+                                else if (column.type == 'image') {
+                                    return `<div style="height: 120px" class="p-2 d-flex v-center h-center"><img class="mw-100 mh-100" src="${Config.ExternalFileUrl + '/' + value}"></div>`;
                                 }
 
                                 if (column.action) {
@@ -1857,6 +1865,9 @@ export class FormComponent implements OnInit {
                         column = Ext.create('Ext.grid.column.Column', col.config);
                     }
                     else {
+                        if (col.type == 'image') {
+                            col.config.width = 150;
+                        }
                         column = Ext.create('Ext.grid.column.Column', col.config);
                     }
 

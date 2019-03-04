@@ -31,7 +31,10 @@ export class AuthenService {
 
     verifyWorkspace(): Promise<any> {
         let params: HttpParams = new HttpParams({
-            fromObject: { href: document.querySelector('base').getAttribute('href') }
+            fromObject: { 
+                // href: document.querySelector('base').getAttribute('href') 
+                code: Config.WSP
+            }
         });
         
         return this.http.get(Config.ServiceUrl + '/ws/verify', { params: params }).toPromise()

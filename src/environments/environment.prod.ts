@@ -8,11 +8,13 @@ var host = window.location.host;
 declare var AppConfig: any;
 export const Config = {
     AppName: 'NC BOM',
+    WSP: AppConfig.WSP,
     PageSize: 10,
     
     ServiceUrl: AppConfig.ServiceUrl,
     AuthenUrl: AppConfig.AuthenUrl,
     FileUrl: AppConfig.FileUrl,
+    ExternalFileUrl: AppConfig.ExternalFileUrl,
     ImageUrl: 'http://203.154.51.244:85/files',
 
     // ServiceUrl: 'http://203.154.51.242',
